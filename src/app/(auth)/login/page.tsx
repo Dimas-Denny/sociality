@@ -32,10 +32,15 @@ export default function LoginPage() {
   const { mutate, isPending } = useMutation({
     mutationFn: loginApi,
     onSuccess: (data) => {
-      dispatch(setCredentials({ user: data.user, token: data.token }));
-      toast.success("Login successfull!");
-      router.push("/");
+      console.log("full response:", data);
+      console.log("user:", data.data.user);
+
+      localStorage.setItem("token", data.data.token);
+      localStorage.setItem("user", JSON.stringify(data.data.user)); // ← tambah ini
+      toast.success("Login successful!");
+      router.push("/feed");
     },
+
     onError: (error) => {
       if (axios.isAxiosError(error)) {
         toast.error(error.response?.data?.message ?? "Login failed");
@@ -53,11 +58,13 @@ export default function LoginPage() {
       <div className="flex flex-col items-center gap-3">
         <div className="flex items-center gap-2">
           <Image src={Logo} alt="Sociality" width={28} height={28} />
-          <span className="text-base-white font-semibold text-xl">
+          <span className="text-base-white font-semibold text-2xl">
             Sociality
           </span>
         </div>
-        <h1 className="text-base-white font-bold text-2xl">Welcome Back!</h1>
+        <h1 className="text-base-white font-bold text-2xl mt-2">
+          Welcome Back!
+        </h1>
       </div>
 
       {/* Form */}
@@ -112,7 +119,7 @@ export default function LoginPage() {
       </form>
 
       {/* Register link */}
-      <p className="text-center text-neutral-400 text-sm">
+      <p className="text-center text-neutral-25 text-sm">
         Don&apos;t have an account?{" "}
         <Link
           href="/register"

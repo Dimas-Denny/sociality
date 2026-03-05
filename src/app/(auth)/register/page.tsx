@@ -39,8 +39,10 @@ export default function RegisterPage() {
     },
     onError: (error) => {
       if (axios.isAxiosError(error)) {
+        console.log("Error response:", error.response?.data);
         toast.error(error.response?.data?.message ?? "Registrasion failed!");
       } else {
+        console.log("Unknown error:", error);
         toast.error("Registrasion failed!");
       }
     },
@@ -49,16 +51,16 @@ export default function RegisterPage() {
   const onSubmit = (data: RegisterInput) => mutate(data);
 
   return (
-    <div className="backdrop-blur-md border border-neutral-800 rounded-3xl p-8 flex flex-col gap-6">
+    <div className="backdrop-blur-md border border-neutral-800 rounded-3xl p-8 flex flex-col gap-6 my-10">
       {/* Logo */}
       <div className="flex flex-col items-center gap-3">
         <div className="flex items-center gap-2">
           <Image src={Logo} alt="Sociality" width={28} height={28} />
-          <span className="text-base-white font-semibold text-xl">
+          <span className="text-base-white font-semibold text-2xl">
             Sociality
           </span>
         </div>
-        <h1 className="text-base-white font-bold text-2xl">Register</h1>
+        <h1 className="text-base-white font-bold text-2xl mt-2">Register</h1>
       </div>
 
       {/* Form */}
@@ -90,6 +92,20 @@ export default function RegisterPage() {
           />
           {errors.username && (
             <p className="text-accent-red text-xs">{errors.username.message}</p>
+          )}
+        </div>
+
+        {/* Email */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-base-white text-sm font-medium">Email</label>
+          <input
+            {...register("email")}
+            type="email"
+            placeholder="Enter your email"
+            className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-base-white placeholder:text-neutral-500 text-sm focus:outline-none focus:border-primary-300 transition-colors"
+          />
+          {errors.email && (
+            <p className="text-accent-red text-xs">{errors.email.message}</p>
           )}
         </div>
 
@@ -172,7 +188,7 @@ export default function RegisterPage() {
       </form>
 
       {/* Login link */}
-      <p className="text-center text-neutral-400 text-sm">
+      <p className="text-center text-neutral-25 text-sm">
         Already have an account?{" "}
         <Link
           href="/login"
