@@ -12,12 +12,18 @@ export default function WelcomePage() {
         <Image
           src={element1}
           alt=""
-          className="absolute bottom-0 left-0 opacity-60"
+          width={600}
+          height={600}
+          className="absolute -bottom-20 left-0 pointer-events-none select-none"
+          priority
         />
         <Image
           src={element2}
           alt=""
-          className="absolute bottom-0 right-0 opacity-60"
+          width={400}
+          height={400}
+          className="absolute -bottom-10 right-0 pointer-events-none select-none"
+          priority
         />
       </div>
 
