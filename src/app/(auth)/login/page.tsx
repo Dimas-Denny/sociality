@@ -35,16 +35,15 @@ export default function LoginPage() {
       console.log("user:", data.data.user);
 
       localStorage.setItem("token", data.data.token);
-      localStorage.setItem("user", JSON.stringify(data.data.user)); // ← tambah ini
+      localStorage.setItem("user", JSON.stringify(data.data.user));
       toast.success("Login successful!");
       router.push("/feed?tab=explore");
     },
-
     onError: (error) => {
       if (axios.isAxiosError(error)) {
+        console.log("Status:", error.response?.status);
+        console.log("Response ", error.response?.data);
         toast.error(error.response?.data?.message ?? "Login failed");
-      } else {
-        toast.error("Login failed");
       }
     },
   });

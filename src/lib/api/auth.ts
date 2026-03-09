@@ -12,6 +12,6 @@ export const registerApi = async (data: RegisterInput) => {
 };
 
 export const getMeApi = async () => {
-  const res = await api.get("/api/me");
+  const res = await api.get("/me");
   return res.data;
 };

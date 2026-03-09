@@ -5,11 +5,7 @@ import { useSearchParams } from "next/navigation";
 import PostCard from "@/components/layout/PostCard";
 import BottomBar from "@/components/layout/BottomBar";
 import { Post } from "@/types/post";
-import axios from "axios";
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://be-social-media-api-production.up.railway.app";
+import api from "@/lib/api/axios";
 
 export default function FeedPage() {
   const searchParams = useSearchParams();
@@ -21,31 +17,18 @@ export default function FeedPage() {
   const fetchPosts = async (tab: "feed" | "explore") => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
 
-      const endpoint =
-        tab === "feed" ? `${API_BASE}/api/feed` : `${API_BASE}/api/posts`;
-
-      const response = await axios.get(endpoint, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const endpoint = tab === "feed" ? "/feed" : "/posts";
+      const response = await api.get(endpoint);
 
       const data =
         tab === "feed"
-          ? response.data?.data?.items || []
-          : response.data?.data?.posts || [];
+          ? (response.data?.data?.items ?? [])
+          : (response.data?.data?.posts ?? []);
 
       setPosts(Array.isArray(data) ? data : []);
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        console.error(
-          `${tab} error:`,
-          error.response?.status,
-          error.response?.data,
-        );
-      } else {
-        console.error(`${tab} error:`, error);
-      }
+      console.error(`${tab} error:`, error);
     } finally {
       setLoading(false);
     }
@@ -58,7 +41,6 @@ export default function FeedPage() {
     fetchPosts(initialTab);
   }, [searchParams]);
 
-  // Scroll ke atas + refresh
   const handleHome = () => {
     topRef.current?.scrollIntoView({ behavior: "smooth" });
     fetchPosts(activeTab);
@@ -119,7 +101,6 @@ export default function FeedPage() {
         )}
       </div>
 
-      {/* Bottom Bar */}
       <BottomBar onHome={handleHome} />
     </div>
   );

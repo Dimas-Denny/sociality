@@ -33,17 +33,21 @@ export default function RegisterPage() {
   const { mutate, isPending } = useMutation({
     mutationFn: registerApi,
     onSuccess: (data) => {
-      dispatch(setCredentials({ user: data.user, token: data.token }));
-      toast.success("Registrasion successfull!");
-      router.push("/");
+      const token = data.data?.token ?? data.token;
+      const user = data.data?.user ?? data.user;
+      dispatch(setCredentials({ user, token }));
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+      toast.success("Registration successful!");
+      router.push("/feed?tab=explore");
     },
     onError: (error) => {
       if (axios.isAxiosError(error)) {
         console.log("Error response:", error.response?.data);
-        toast.error(error.response?.data?.message ?? "Registrasion failed!");
+        toast.error(error.response?.data?.message ?? "Registration failed!");
       } else {
         console.log("Unknown error:", error);
-        toast.error("Registrasion failed!");
+        toast.error("Registration failed!");
       }
     },
   });
