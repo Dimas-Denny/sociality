@@ -2,20 +2,45 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import api from "@/lib/api/axios";
 import axios from "axios";
-import avatar from "@/assets/svg/avatar.svg";
 import likeIcon from "@/assets/svg/like.svg";
 import likedIcon from "@/assets/svg/liked.svg";
 import commentIcon from "@/assets/svg/comment.svg";
 import shareIcon from "@/assets/svg/share.svg";
 import savedIcon from "@/assets/svg/saved.svg";
+import savedActiveIcon from "@/assets/svg/saved2.svg";
 import LikesModal from "@/components/layout/LikesModal";
 import CommentsModal from "@/components/layout/CommentsModal";
 import { Post } from "@/types/post";
+import { timeAgo } from "@/lib/timeAgo";
+import { useRouter } from "next/navigation";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://be-social-media-api-production.up.railway.app";
+function AuthorAvatar({
+  avatarUrl,
+  name,
+}: {
+  avatarUrl: string | null;
+  name: string;
+}) {
+  if (avatarUrl) {
+    return (
+      <Image
+        src={avatarUrl}
+        alt="avatar"
+        width={36}
+        height={36}
+        className="rounded-full object-cover shrink-0"
+        style={{ width: 36, height: 36 }}
+      />
+    );
+  }
+  return (
+    <div className="w-9 h-9 rounded-full bg-neutral-700 flex items-center justify-center text-white text-sm font-bold shrink-0">
+      {name?.charAt(0).toUpperCase() ?? "?"}
+    </div>
+  );
+}
 
 export default function PostCard({ post }: { post: Post }) {
   const [showFull, setShowFull] = useState(false);
@@ -25,27 +50,22 @@ export default function PostCard({ post }: { post: Post }) {
   const [showLikesModal, setShowLikesModal] = useState(false);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [commentCount] = useState(post.commentCount);
+  const [saved, setSaved] = useState(post.savedByMe ?? false);
+  const [saveAnim, setSaveAnim] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const router = useRouter();
 
   const maxLength = 80;
   const isLong = post.caption.length > maxLength;
 
   const handleLike = async () => {
     try {
-      const token = localStorage.getItem("token");
       if (liked) {
-        await axios.delete(`${API_BASE}/api/posts/${post.id}/like`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await api.delete(`/posts/${post.id}/like`);
         setLiked(false);
         setLikeCount((prev) => prev - 1);
       } else {
-        await axios.post(
-          `${API_BASE}/api/posts/${post.id}/like`,
-          {},
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
+        await api.post(`/posts/${post.id}/like`, {});
         setLiked(true);
         setLikeCount((prev) => prev + 1);
         setLikeAnim(true);
@@ -53,6 +73,44 @@ export default function PostCard({ post }: { post: Post }) {
       }
     } catch (error) {
       console.error("Like error:", error);
+    }
+  };
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/posts/${post.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const el = document.createElement("input");
+      el.value = url;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSave = async () => {
+    try {
+      if (saved) {
+        await api.delete(`/posts/${post.id}/save`);
+        setSaved(false);
+      } else {
+        await api.post(`/posts/${post.id}/save`, {});
+        setSaved(true);
+        setSaveAnim(true);
+        setTimeout(() => setSaveAnim(false), 400);
+      }
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error(
+          "Save error:",
+          error.response?.status,
+          error.response?.data,
+        );
+      }
     }
   };
 
@@ -77,24 +135,33 @@ export default function PostCard({ post }: { post: Post }) {
       <div className="w-full bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center gap-3 px-4 pt-4 pb-3">
-          <Image
-            src={post.author.avatarUrl ?? avatar}
-            alt="avatar"
-            width={36}
-            height={36}
-            className="rounded-full object-cover"
-          />
+          {/* Avatar bisa diklik juga */}
+          <button onClick={() => router.push(`/users/${post.author.username}`)}>
+            <AuthorAvatar
+              avatarUrl={post.author.avatarUrl ?? null}
+              name={post.author.name}
+            />
+          </button>
           <div>
-            <p className="text-white text-sm font-semibold">
+            {/* Nama diklik → ke profile */}
+            <button
+              onClick={() => router.push(`/users/${post.author.username}`)}
+              className="text-white text-sm font-semibold hover:underline"
+            >
               {post.author.name}
+            </button>
+            <p className="text-neutral-500 text-xs">
+              {timeAgo(post.createdAt)}
             </p>
-            <p className="text-neutral-500 text-xs">{post.createdAt}</p>
           </div>
         </div>
 
         {/* Image */}
         {post.imageUrl && (
-          <div className="w-full aspect-video relative">
+          <div
+            className="w-full aspect-video relative"
+            onClick={() => router.push(`/posts/${post.id}`)}
+          >
             <Image
               src={post.imageUrl}
               alt="post"
@@ -144,18 +211,37 @@ export default function PostCard({ post }: { post: Post }) {
           </div>
 
           {/* Share */}
-          <div className="flex items-center gap-1.5">
-            <button className="text-neutral-400 hover:text-white transition-colors">
+          <div className="relative flex items-center gap-1.5">
+            <button
+              onClick={handleShare}
+              className="text-neutral-400 hover:text-white transition-colors"
+            >
               <Image src={shareIcon} alt="share" width={22} height={22} />
             </button>
             <span className="text-neutral-400 text-sm">
               {post.shareCount ?? 0}
             </span>
+            {copied && (
+              <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-neutral-800 text-white text-xs px-2 py-1 rounded-full whitespace-nowrap">
+                Link copied!
+              </span>
+            )}
           </div>
 
-          {/* Saved */}
-          <button className="ml-auto text-neutral-400 hover:text-white transition-colors">
-            <Image src={savedIcon} alt="saved" width={22} height={22} />
+          {/* Save */}
+          <button
+            onClick={handleSave}
+            className={`ml-auto transition-transform ${saveAnim ? "scale-125" : "scale-100"} duration-200 ${
+              saved ? "opacity-100" : "text-neutral-400 hover:text-white"
+            }`}
+          >
+            <Image
+              src={saved ? savedActiveIcon : savedIcon}
+              alt="saved"
+              width={22}
+              height={22}
+              className={saved ? "brightness-200" : ""}
+            />
           </button>
         </div>
 

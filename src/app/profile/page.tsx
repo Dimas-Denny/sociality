@@ -5,9 +5,9 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api/axios";
 import BottomBar from "@/components/layout/BottomBar";
-import galleryIcon from "@/assets/svg/gallery.svg";
 import savedIcon from "@/assets/svg/saved.svg";
 import shareIcon from "@/assets/svg/share.svg";
+import postIcon from "@/assets/svg/post.svg";
 
 type ProfileData = {
   id: number;
@@ -26,12 +26,52 @@ type Post = {
   imageUrl: string;
 };
 
+function formatCount(n: number): string {
+  if (n >= 1_000_000)
+    return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+  if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
+  return String(n);
+}
+
+function Avatar({
+  url,
+  name,
+  size,
+}: {
+  url: string | null;
+  name?: string;
+  size: number;
+}) {
+  if (url) {
+    return (
+      <Image
+        src={url}
+        alt="avatar"
+        width={size}
+        height={size}
+        className="rounded-full object-cover shrink-0"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+  return (
+    <div
+      className="rounded-full bg-neutral-700 flex items-center justify-center shrink-0 text-white font-bold"
+      style={{ width: size, height: size, fontSize: size * 0.35 }}
+    >
+      {name?.charAt(0).toUpperCase() ?? "?"}
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [activeTab, setActiveTab] = useState<"gallery" | "saved">("gallery");
+  const [savedPosts, setSavedPosts] = useState<Post[]>([]);
+  const [activeTab, setActiveTab] = useState<"posts" | "saved">("posts");
   const [loading, setLoading] = useState(true);
+  const [loadingSaved, setLoadingSaved] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -50,19 +90,53 @@ export default function ProfilePage() {
         api.get("/me"),
         api.get("/me/posts").catch(() => ({ data: null })),
       ]);
-      const profileData = profileRes.data?.data ?? profileRes.data;
-      setProfile(profileData);
+
+      const raw = profileRes.data?.data;
+      setProfile({
+        ...raw.profile,
+        postCount: raw.stats?.posts ?? 0,
+        followerCount: raw.stats?.followers ?? 0,
+        followingCount: raw.stats?.following ?? 0,
+        likeCount: raw.stats?.likes ?? 0,
+      });
 
       const postsData =
+        postsRes.data?.data?.items ??
         postsRes.data?.data?.posts ??
         postsRes.data?.data ??
-        postsRes.data ??
         [];
       setPosts(Array.isArray(postsData) ? postsData : []);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSavedPosts = async () => {
+    try {
+      setLoadingSaved(true);
+      const res = await api.get("/me/saved");
+      const data =
+        res.data?.data?.posts ??
+        res.data?.data?.saved ??
+        res.data?.data ??
+        res.data ??
+        [];
+      setSavedPosts(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Fetch saved error:", err);
+      setSavedPosts([]);
+    } finally {
+      setLoadingSaved(false);
+    }
+  };
+
+  // Fetch saved posts saat tab saved dibuka
+  const handleTabChange = (tab: "posts" | "saved") => {
+    setActiveTab(tab);
+    if (tab === "saved" && savedPosts.length === 0) {
+      fetchSavedPosts();
     }
   };
 
@@ -116,42 +190,28 @@ export default function ProfilePage() {
           </svg>
           <span className="font-semibold text-base">{profile?.name}</span>
         </button>
-        {profile?.avatarUrl ? (
-          <Image
-            src={profile.avatarUrl}
-            alt="avatar"
-            width={36}
-            height={36}
-            className="rounded-full object-cover"
-            style={{ width: 36, height: 36 }}
-          />
-        ) : (
-          <div className="w-9 h-9 rounded-full bg-neutral-700 flex items-center justify-center text-white text-sm font-bold">
-            {profile?.name?.charAt(0).toUpperCase() ?? "?"}
-          </div>
-        )}
+        <Avatar
+          url={profile?.avatarUrl ?? null}
+          name={profile?.name}
+          size={36}
+        />
       </div>
 
       <div className="px-4 space-y-4">
-        {/* Avatar besar + Name */}
-        <div className="flex items-center gap-4">
-          {profile?.avatarUrl ? (
-            <Image
-              src={profile.avatarUrl}
-              alt="avatar"
-              width={64}
-              height={64}
-              className="rounded-full object-cover shrink-0"
-              style={{ width: 64, height: 64 }}
-            />
-          ) : (
-            <div className="w-16 h-16 rounded-full bg-neutral-700 flex items-center justify-center text-white text-xl font-bold shrink-0">
-              {profile?.name?.charAt(0).toUpperCase() ?? "?"}
-            </div>
-          )}
-          <div>
-            <p className="text-white font-bold text-base">{profile?.name}</p>
-            <p className="text-neutral-500 text-sm">@{profile?.username}</p>
+        {/* Avatar + Nama + Username */}
+        <div className="flex items-center gap-3">
+          <Avatar
+            url={profile?.avatarUrl ?? null}
+            name={profile?.name}
+            size={56}
+          />
+          <div className="flex flex-col">
+            <span className="text-white font-bold text-base leading-tight">
+              {profile?.name}
+            </span>
+            <span className="text-neutral-500 text-sm">
+              @{profile?.username}
+            </span>
           </div>
         </div>
 
@@ -196,7 +256,7 @@ export default function ProfilePage() {
               className="flex flex-col items-center gap-0.5"
             >
               <span className="text-white font-bold text-base">
-                {stat.value}
+                {formatCount(stat.value)}
               </span>
               <span className="text-neutral-500 text-xs">{stat.label}</span>
             </div>
@@ -206,18 +266,18 @@ export default function ProfilePage() {
         {/* Tabs */}
         <div className="flex border-b border-neutral-800">
           <button
-            onClick={() => setActiveTab("gallery")}
+            onClick={() => handleTabChange("posts")}
             className={`flex flex-1 items-center justify-center gap-2 py-3 text-sm font-semibold border-b-2 transition-colors ${
-              activeTab === "gallery"
+              activeTab === "posts"
                 ? "border-white text-white"
                 : "border-transparent text-neutral-500"
             }`}
           >
-            <Image src={galleryIcon} alt="Gallery" width={18} height={18} />
-            Gallery
+            <Image src={postIcon} alt="Posts" width={18} height={18} />
+            Posts
           </button>
           <button
-            onClick={() => setActiveTab("saved")}
+            onClick={() => handleTabChange("saved")}
             className={`flex flex-1 items-center justify-center gap-2 py-3 text-sm font-semibold border-b-2 transition-colors ${
               activeTab === "saved"
                 ? "border-white text-white"
@@ -230,7 +290,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Gallery Content */}
-        {activeTab === "gallery" && (
+        {activeTab === "posts" && (
           <>
             {posts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
@@ -239,7 +299,7 @@ export default function ProfilePage() {
                 </p>
                 <p className="text-neutral-500 text-sm leading-relaxed max-w-xs">
                   Share your first post and let the world see your moments,
-                  passions, and memories. Make this space truly yours.
+                  passions, and memories.
                 </p>
                 <button
                   onClick={() => router.push("/add-post")}
@@ -254,6 +314,7 @@ export default function ProfilePage() {
                   <div
                     key={post.id}
                     className="aspect-square relative rounded-sm overflow-hidden"
+                    onClick={() => router.push(`/posts/${post.id}`)}
                   >
                     <Image
                       src={post.imageUrl}
@@ -270,9 +331,39 @@ export default function ProfilePage() {
 
         {/* Saved Content */}
         {activeTab === "saved" && (
-          <div className="flex flex-col items-center justify-center py-20">
-            <p className="text-neutral-500 text-sm">No saved posts yet</p>
-          </div>
+          <>
+            {loadingSaved ? (
+              <div className="text-neutral-500 text-center py-12 text-sm">
+                Loading...
+              </div>
+            ) : savedPosts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
+                <p className="text-white font-bold text-lg">
+                  No saved posts yet
+                </p>
+                <p className="text-neutral-500 text-sm max-w-xs">
+                  Tap the bookmark icon on any post to save it here.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-1">
+                {savedPosts.map((post) => (
+                  <div
+                    key={post.id}
+                    className="aspect-square relative rounded-sm overflow-hidden"
+                    onClick={() => router.push(`/posts/${post.id}`)}
+                  >
+                    <Image
+                      src={post.imageUrl}
+                      alt="post"
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 

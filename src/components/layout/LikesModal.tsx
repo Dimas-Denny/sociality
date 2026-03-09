@@ -2,12 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import api from "@/lib/api/axios";
 import axios from "axios";
 import avatar from "@/assets/svg/avatar.svg";
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://be-social-media-api-production.up.railway.app";
 
 type LikeUser = {
   id: string;
@@ -42,13 +39,7 @@ export default function LikesModal({
 
   const fetchLikes = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await axios.get(
-        `${API_BASE}/api/posts/${postId}/likes`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+      const response = await api.get(`/posts/${postId}/likes`);
       const data =
         response.data?.data?.users ||
         response.data?.data ||
@@ -56,7 +47,8 @@ export default function LikesModal({
         [];
       setUsers(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Error fetching likes:", error);
+      if (axios.isAxiosError(error))
+        console.error("Error fetching likes:", error.response?.data);
     } finally {
       setLoading(false);
     }
@@ -65,21 +57,15 @@ export default function LikesModal({
   const handleFollow = async (username: string) => {
     try {
       setFollowLoading(username);
-      const token = localStorage.getItem("token");
-      await axios.post(
-        `${API_BASE}/api/follow/${username}`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+      await api.post(`/follow/${username}`, {});
       setUsers((prev) =>
         prev.map((u) =>
           u.username === username ? { ...u, followedByMe: true } : u,
         ),
       );
     } catch (error) {
-      console.error("Follow error:", error);
+      if (axios.isAxiosError(error))
+        console.error("Follow error:", error.response?.data);
     } finally {
       setFollowLoading(null);
     }
@@ -88,37 +74,31 @@ export default function LikesModal({
   const handleUnfollow = async (username: string) => {
     try {
       setFollowLoading(username);
-      const token = localStorage.getItem("token");
-      await axios.delete(`${API_BASE}/api/follow/${username}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.delete(`/follow/${username}`);
       setUsers((prev) =>
         prev.map((u) =>
           u.username === username ? { ...u, followedByMe: false } : u,
         ),
       );
     } catch (error) {
-      console.error("Unfollow error:", error);
+      if (axios.isAxiosError(error))
+        console.error("Unfollow error:", error.response?.data);
     } finally {
       setFollowLoading(null);
     }
   };
 
-  // Filter: hilangkan like dari saya sendiri
   const otherUsers = users.filter((u) => u.username !== currentUsername);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black">
-      {/* Post image preview */}
       {postImageUrl && (
         <div className="relative w-full aspect-video">
           <Image src={postImageUrl} alt="post" fill className="object-cover" />
         </div>
       )}
 
-      {/* Likes list */}
       <div className="flex-1 overflow-y-auto bg-neutral-950 px-4 pb-8">
-        {/* Header dengan tombol close */}
         <div className="flex items-center justify-between py-4 sticky top-0 bg-neutral-950 z-10">
           <h2 className="text-white font-bold text-lg">Likes</h2>
           <button

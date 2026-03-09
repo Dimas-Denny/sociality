@@ -2,12 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
-import axios from "axios";
-import avatar from "@/assets/svg/avatar.svg";
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://be-social-media-api-production.up.railway.app";
+import api from "@/lib/api/axios";
 
 const EMOJIS = [
   "😀",
@@ -55,6 +50,32 @@ type Comment = {
   };
 };
 
+function CommentAvatar({
+  avatarUrl,
+  name,
+}: {
+  avatarUrl?: string | null;
+  name: string;
+}) {
+  if (avatarUrl) {
+    return (
+      <Image
+        src={avatarUrl}
+        alt={name}
+        width={36}
+        height={36}
+        style={{ width: 36, height: 36 }}
+        className="rounded-full object-cover shrink-0"
+      />
+    );
+  }
+  return (
+    <div className="w-9 h-9 rounded-full bg-neutral-700 flex items-center justify-center text-white text-sm font-bold shrink-0">
+      {name?.charAt(0).toUpperCase() ?? "?"}
+    </div>
+  );
+}
+
 export default function CommentsModal({
   postId,
   onClose,
@@ -73,18 +94,12 @@ export default function CommentsModal({
 
   useEffect(() => {
     fetchComments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchComments = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await axios.get(
-        `${API_BASE}/api/posts/${postId}/comments`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      // API returns: response.data.data.comments
+      const response = await api.get(`/posts/${postId}/comments`);
       const data = response.data?.data?.comments ?? [];
       setComments(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -98,12 +113,9 @@ export default function CommentsModal({
     if (!text.trim()) return;
     try {
       setPosting(true);
-      const token = localStorage.getItem("token");
-      const response = await axios.post(
-        `${API_BASE}/api/posts/${postId}/comments`,
-        { text: text.trim() },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      const response = await api.post(`/posts/${postId}/comments`, {
+        text: text.trim(),
+      });
       const newComment =
         response.data?.data?.comment ??
         response.data?.data ??
@@ -117,18 +129,12 @@ export default function CommentsModal({
       setText("");
       setShowEmoji(false);
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        console.error(
-          "Post comment error:",
-          JSON.stringify(error.response?.data, null, 2),
-        );
-      }
+      console.error("Post comment error:", error);
     } finally {
       setPosting(false);
     }
   };
 
-  // API pakai field "text"
   const getCommentText = (comment: Comment): string => {
     return comment.text ?? comment.content ?? comment.body ?? "";
   };
@@ -184,13 +190,9 @@ export default function CommentsModal({
         ) : (
           comments.map((comment, index) => (
             <div key={comment.id ?? index} className="flex gap-3">
-              <Image
-                src={comment.author?.avatarUrl ?? avatar}
-                alt={comment.author?.name ?? "user"}
-                width={36}
-                height={36}
-                style={{ width: 36, height: 36 }}
-                className="rounded-full object-cover shrink-0"
+              <CommentAvatar
+                avatarUrl={comment.author?.avatarUrl}
+                name={comment.author?.name ?? "?"}
               />
               <div>
                 <div className="flex items-center gap-2">
@@ -229,13 +231,10 @@ export default function CommentsModal({
       <div className="bg-neutral-950 border-t border-neutral-800 px-4 py-3 flex items-center gap-3 shrink-0">
         <button
           onClick={() => setShowEmoji((prev) => !prev)}
-          className={`text-2xl transition-colors ${
-            showEmoji ? "text-violet-400" : "text-neutral-400 hover:text-white"
-          }`}
+          className={`text-2xl transition-colors ${showEmoji ? "text-violet-400" : "text-neutral-400 hover:text-white"}`}
         >
           😊
         </button>
-
         <input
           ref={inputRef}
           type="text"
@@ -245,7 +244,6 @@ export default function CommentsModal({
           placeholder="Add Comment"
           className="flex-1 bg-transparent text-white placeholder:text-neutral-500 text-sm focus:outline-none"
         />
-
         <button
           onClick={handlePost}
           disabled={posting || !text.trim()}

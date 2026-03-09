@@ -7,7 +7,7 @@ export interface Author {
 
 export interface Post {
   id: number;
-  imageUrl: string;
+  imageUrl: string | null;
   caption: string;
   createdAt: string;
   author: Author;
@@ -15,6 +15,7 @@ export interface Post {
   commentCount: number;
   shareCount?: number;
   likedByMe: boolean;
+  savedByMe?: boolean;
 }
 
 export interface Pagination {

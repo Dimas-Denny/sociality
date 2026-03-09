@@ -3,35 +3,38 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import avatar from "@/assets/svg/avatar.svg";
+import { useRouter, usePathname } from "next/navigation";
 import logo1 from "@/assets/png/logo1.png";
+import api from "@/lib/api/axios";
 
-function useIsLoggedIn() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoggedIn(!!localStorage.getItem("token"));
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
-  return isLoggedIn;
-}
+type NavUser = {
+  name: string;
+  username: string;
+  avatarUrl: string | null;
+};
 
-function useUser() {
-  const [user, setUser] = useState<{
-    name: string;
-    username: string;
-    avatarUrl?: string;
-  } | null>(null);
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const raw = localStorage.getItem("user");
-      if (raw) setUser(JSON.parse(raw));
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
-  return user;
+// ← Dipindah keluar dari komponen
+function UserAvatar({ user, size }: { user: NavUser | null; size: number }) {
+  if (user?.avatarUrl) {
+    return (
+      <Image
+        src={user.avatarUrl}
+        alt="avatar"
+        width={size}
+        height={size}
+        className="rounded-full object-cover"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+  return (
+    <div
+      className="rounded-full bg-neutral-700 flex items-center justify-center text-white font-bold"
+      style={{ width: size, height: size, fontSize: size * 0.38 }}
+    >
+      {user?.name?.charAt(0).toUpperCase() ?? "?"}
+    </div>
+  );
 }
 
 export default function Navbar() {
@@ -39,11 +42,37 @@ export default function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const isLoggedIn = useIsLoggedIn();
-  const user = useUser();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<NavUser | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return; // ← tidak setState sync, biarkan default false/null
+
+    // setState hanya di dalam async callback
+    const fetchUser = async () => {
+      try {
+        const res = await api.get("/me");
+        const raw = res.data?.data;
+        const p = raw?.profile ?? raw;
+        setIsLoggedIn(true);
+        setUser({
+          name: p.name ?? "",
+          username: p.username ?? "",
+          avatarUrl: p.avatarUrl ?? null,
+        });
+      } catch {
+        setIsLoggedIn(false);
+        setUser(null);
+      }
+    };
+
+    fetchUser();
+  }, [pathname]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -59,14 +88,14 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
-    if (searchOpen) {
-      searchInputRef.current?.focus();
-    }
+    if (searchOpen) searchInputRef.current?.focus();
   }, [searchOpen]);
 
   function handleLogout() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    setIsLoggedIn(false);
+    setUser(null);
     setDropdownOpen(false);
     router.push("/login");
   }
@@ -80,7 +109,6 @@ export default function Navbar() {
     <nav className="w-full bg-black border-b border-neutral-800 px-6 py-4">
       <div className="max-w-5xl mx-auto flex items-center justify-between">
         {searchOpen ? (
-          /* Search Mode */
           <div className="flex items-center gap-3 w-full">
             <div className="flex items-center gap-2 flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-2">
               <svg
@@ -103,13 +131,12 @@ export default function Navbar() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search..."
-                className="flex-1 bg-transparent text-base-white placeholder:text-neutral-500 text-sm focus:outline-none"
+                className="flex-1 bg-transparent text-white placeholder:text-neutral-500 text-sm focus:outline-none"
               />
             </div>
-            {/* Close Button */}
             <button
               onClick={handleCloseSearch}
-              className="text-neutral-400 hover:text-base-white transition-colors shrink-0"
+              className="text-neutral-400 hover:text-white transition-colors shrink-0"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -128,22 +155,16 @@ export default function Navbar() {
             </button>
           </div>
         ) : (
-          /* Normal Mode */
           <>
-            {/* Logo */}
             <Link href="/feed" className="flex items-center gap-2">
               <Image src={logo1} alt="Sociality" width={40} height={40} />
-              <span className="text-base-white font-bold text-lg">
-                Sociality
-              </span>
+              <span className="text-white font-bold text-lg">Sociality</span>
             </Link>
 
-            {/* Right Side */}
             <div className="flex items-center gap-3">
-              {/* Search Icon */}
               <button
                 onClick={() => setSearchOpen(true)}
-                className="text-neutral-400 hover:text-base-white transition-colors"
+                className="text-neutral-400 hover:text-white transition-colors"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -164,24 +185,21 @@ export default function Navbar() {
               {isLoggedIn ? (
                 <div className="relative" ref={dropdownRef}>
                   <button onClick={() => setDropdownOpen(!dropdownOpen)}>
-                    <Image
-                      src={user?.avatarUrl ?? avatar}
-                      alt="Avatar"
-                      width={32}
-                      height={32}
-                      className="rounded-full object-cover cursor-pointer"
-                    />
+                    <UserAvatar user={user} size={32} />
                   </button>
 
                   {dropdownOpen && (
                     <div className="absolute right-0 mt-3 w-52 bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl z-50">
-                      <div className="px-4 py-3 border-b border-neutral-800">
-                        <p className="text-base-white text-sm font-semibold">
-                          {user?.name ?? "User"}
-                        </p>
-                        <p className="text-neutral-500 text-xs mt-0.5">
-                          @{user?.username ?? ""}
-                        </p>
+                      <div className="px-4 py-3 border-b border-neutral-800 flex items-center gap-3">
+                        <UserAvatar user={user} size={36} />
+                        <div>
+                          <p className="text-white text-sm font-semibold">
+                            {user?.name ?? "User"}
+                          </p>
+                          <p className="text-neutral-500 text-xs mt-0.5">
+                            @{user?.username ?? ""}
+                          </p>
+                        </div>
                       </div>
                       <Link
                         href="/profile"
@@ -230,7 +248,7 @@ export default function Navbar() {
               ) : (
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="text-neutral-400 hover:text-base-white transition-colors"
+                  className="text-neutral-400 hover:text-white transition-colors"
                 >
                   {menuOpen ? (
                     <svg
@@ -270,21 +288,20 @@ export default function Navbar() {
         )}
       </div>
 
-      {/* Dropdown Menu (belum login) */}
       {!searchOpen && !isLoggedIn && menuOpen && (
         <div className="max-w-5xl mx-auto mt-4 flex flex-col gap-2 pb-2">
           <div className="flex gap-3">
             <Link
               href="/login"
               onClick={() => setMenuOpen(false)}
-              className="flex-1 text-center border border-neutral-700 text-base-white rounded-xl py-2 text-sm font-medium hover:bg-neutral-800 transition-colors"
+              className="flex-1 text-center border border-neutral-700 text-white rounded-xl py-2 text-sm font-medium hover:bg-neutral-800 transition-colors"
             >
               Login
             </Link>
             <Link
               href="/register"
               onClick={() => setMenuOpen(false)}
-              className="flex-1 text-center bg-primary-300 text-white rounded-xl py-2 text-sm font-medium hover:opacity-90 transition-opacity"
+              className="flex-1 text-center bg-violet-600 text-white rounded-xl py-2 text-sm font-medium hover:opacity-90 transition-opacity"
             >
               Register
             </Link>

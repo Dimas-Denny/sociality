@@ -3,11 +3,8 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import api from "@/lib/api/axios";
 import axios from "axios";
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://be-social-media-api-production.up.railway.app";
 
 export default function AddPostPage() {
   const router = useRouter();
@@ -55,25 +52,18 @@ export default function AddPostPage() {
 
   const handleSubmit = async () => {
     if (!validate()) return;
-
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
       const formData = new FormData();
       formData.append("image", image!);
       formData.append("caption", caption);
 
-      await axios.post(`${API_BASE}/api/posts`, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
+      await api.post("/posts", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
       setSuccess(true);
-      setTimeout(() => {
-        router.push("/feed");
-      }, 1500);
+      setTimeout(() => router.push("/feed"), 1500);
     } catch (error) {
       if (axios.isAxiosError(error)) {
         console.error("Post error:", error.response?.data);
@@ -129,12 +119,12 @@ export default function AddPostPage() {
             />
           </svg>
         </button>
-        <h1 className="text-base-white font-semibold text-lg">Add Post</h1>
+        <h1 className="text-white font-semibold text-lg">Add Post</h1>
       </div>
 
       {/* Photo Upload */}
       <div className="mb-4">
-        <label className="text-base-white text-sm font-medium mb-2 block">
+        <label className="text-white text-sm font-medium mb-2 block">
           Photo
         </label>
         <div
@@ -198,7 +188,7 @@ export default function AddPostPage() {
 
       {/* Caption */}
       <div className="mb-6">
-        <label className="text-base-white text-sm font-medium mb-2 block">
+        <label className="text-white text-sm font-medium mb-2 block">
           Caption
         </label>
         <textarea
@@ -209,7 +199,7 @@ export default function AddPostPage() {
           }}
           placeholder="Create your caption"
           rows={4}
-          className={`w-full bg-neutral-900 border rounded-2xl px-4 py-3 text-base-white placeholder:text-neutral-500 text-sm focus:outline-none transition-colors resize-none ${
+          className={`w-full bg-neutral-900 border rounded-2xl px-4 py-3 text-white placeholder:text-neutral-500 text-sm focus:outline-none transition-colors resize-none ${
             captionError
               ? "border-red-500 focus:border-red-500"
               : "border-neutral-800 focus:border-violet-500"

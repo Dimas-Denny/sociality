@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
+        hostname: "be-social-media-api-production.up.railway.app",
+      },
+      {
+        protocol: "https",
         hostname: "res.cloudinary.com",
       },
     ],
