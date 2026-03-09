@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import PostCard from "@/components/layout/PostCard";
@@ -7,7 +8,7 @@ import BottomBar from "@/components/layout/BottomBar";
 import { Post } from "@/types/post";
 import api from "@/lib/api/axios";
 
-export default function FeedPage() {
+function FeedContent() {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<"feed" | "explore">("feed");
   const [posts, setPosts] = useState<Post[]>([]);
@@ -17,15 +18,12 @@ export default function FeedPage() {
   const fetchPosts = async (tab: "feed" | "explore") => {
     try {
       setLoading(true);
-
       const endpoint = tab === "feed" ? "/feed" : "/posts";
       const response = await api.get(endpoint);
-
       const data =
         tab === "feed"
           ? (response.data?.data?.items ?? [])
           : (response.data?.data?.posts ?? []);
-
       setPosts(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(`${tab} error:`, error);
@@ -103,5 +101,19 @@ export default function FeedPage() {
 
       <BottomBar onHome={handleHome} />
     </div>
+  );
+}
+
+export default function FeedPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="bg-black min-h-screen flex items-center justify-center">
+          <span className="text-neutral-500 text-sm">Loading...</span>
+        </div>
+      }
+    >
+      <FeedContent />
+    </Suspense>
   );
 }
