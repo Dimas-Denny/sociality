@@ -10,15 +10,14 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Eye, EyeOff } from "lucide-react";
 import axios from "axios";
-import { useAppDispatch } from "@/lib/store/hooks";
-import { setCredentials } from "@/lib/store/authSlice";
+
 import { loginSchema, LoginInput } from "@/lib/validations/auth";
 import { loginApi } from "@/lib/api/auth";
 import Logo from "@/assets/svg/logo.svg";
 
 export default function LoginPage() {
   const router = useRouter();
-  const dispatch = useAppDispatch();
+
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -38,7 +37,7 @@ export default function LoginPage() {
       localStorage.setItem("token", data.data.token);
       localStorage.setItem("user", JSON.stringify(data.data.user)); // ← tambah ini
       toast.success("Login successful!");
-      router.push("/feed");
+      router.push("/feed?tab=explore");
     },
 
     onError: (error) => {

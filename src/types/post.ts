@@ -13,6 +13,7 @@ export interface Post {
   author: Author;
   likeCount: number;
   commentCount: number;
+  shareCount?: number;
   likedByMe: boolean;
 }
 

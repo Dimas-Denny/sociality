@@ -1,119 +1,182 @@
-import { Post } from "@/types/post";
-import avatar from "@/assets/svg/avatar.svg";
-import Image from "next/image";
+"use client";
+
 import { useState } from "react";
+import Image from "next/image";
+import axios from "axios";
+import avatar from "@/assets/svg/avatar.svg";
+import likeIcon from "@/assets/svg/like.svg";
+import likedIcon from "@/assets/svg/liked.svg";
+import commentIcon from "@/assets/svg/comment.svg";
+import shareIcon from "@/assets/svg/share.svg";
+import savedIcon from "@/assets/svg/saved.svg";
+import LikesModal from "@/components/layout/LikesModal";
+import CommentsModal from "@/components/layout/CommentsModal";
+import { Post } from "@/types/post";
+
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://be-social-media-api-production.up.railway.app";
 
 export default function PostCard({ post }: { post: Post }) {
   const [showFull, setShowFull] = useState(false);
+  const [liked, setLiked] = useState(post.likedByMe);
+  const [likeCount, setLikeCount] = useState(post.likeCount);
+  const [likeAnim, setLikeAnim] = useState(false);
+  const [showLikesModal, setShowLikesModal] = useState(false);
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
+  const [commentCount] = useState(post.commentCount);
+
   const maxLength = 80;
   const isLong = post.caption.length > maxLength;
 
-  return (
-    <div className="w-full bg-neutral-950 border-b border-neutral-800">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 pt-4 pb-3">
-        <Image
-          src={post.author.avatarUrl ?? avatar}
-          alt="avatar"
-          width={36}
-          height={36}
-          className="rounded-full object-cover"
-        />
-        <div>
-          <p className="text-base-white text-sm font-semibold">
-            {post.author.name}
-          </p>
-          <p className="text-neutral-500 text-xs">{post.createdAt}</p>
-        </div>
-      </div>
+  const handleLike = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (liked) {
+        await axios.delete(`${API_BASE}/api/posts/${post.id}/like`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setLiked(false);
+        setLikeCount((prev) => prev - 1);
+      } else {
+        await axios.post(
+          `${API_BASE}/api/posts/${post.id}/like`,
+          {},
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+        setLiked(true);
+        setLikeCount((prev) => prev + 1);
+        setLikeAnim(true);
+        setTimeout(() => setLikeAnim(false), 400);
+      }
+    } catch (error) {
+      console.error("Like error:", error);
+    }
+  };
 
-      {/* Image */}
-      {post.imageUrl && (
-        <div className="w-full aspect-4/3 relative">
-          <Image src={post.imageUrl} alt="post" fill className="object-cover" />
-        </div>
+  return (
+    <>
+      {showLikesModal && (
+        <LikesModal
+          postId={post.id}
+          postImageUrl={post.imageUrl ?? undefined}
+          onClose={() => setShowLikesModal(false)}
+        />
       )}
 
-      {/* Actions */}
-      <div className="flex items-center gap-5 px-4 py-3">
-        {/* Like */}
-        <button
-          className={`flex items-center gap-1.5 transition-colors ${post.likedByMe ? "text-rose-500" : "text-neutral-400 hover:text-rose-500"}`}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="w-5 h-5"
-            fill={post.likedByMe ? "currentColor" : "none"}
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 116.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z"
-            />
-          </svg>
-          <span className="text-sm">{post.likeCount}</span>
-        </button>
+      {showCommentsModal && (
+        <CommentsModal
+          postId={post.id}
+          postImageUrl={post.imageUrl ?? undefined}
+          onClose={() => setShowCommentsModal(false)}
+        />
+      )}
 
-        {/* Comment */}
-        <button className="flex items-center gap-1.5 text-neutral-400 hover:text-blue-400 transition-colors">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-            />
-          </svg>
-          <span className="text-sm">{post.commentCount}</span>
-        </button>
+      <div className="w-full bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+          <Image
+            src={post.author.avatarUrl ?? avatar}
+            alt="avatar"
+            width={36}
+            height={36}
+            className="rounded-full object-cover"
+          />
+          <div>
+            <p className="text-white text-sm font-semibold">
+              {post.author.name}
+            </p>
+            <p className="text-neutral-500 text-xs">{post.createdAt}</p>
+          </div>
+        </div>
 
-        {/* Bookmark */}
-        <button className="ml-auto text-neutral-400 hover:text-base-white transition-colors">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+        {/* Image */}
+        {post.imageUrl && (
+          <div className="w-full aspect-video relative">
+            <Image
+              src={post.imageUrl}
+              alt="post"
+              fill
+              className="object-cover"
             />
-          </svg>
-        </button>
-      </div>
+          </div>
+        )}
 
-      {/* Caption */}
-      <div className="px-4 pb-4">
-        <p className="text-base-white text-sm font-semibold">
-          {post.author.name}
-        </p>
-        <p className="text-neutral-300 text-sm mt-0.5">
-          {isLong && !showFull
-            ? post.caption.slice(0, maxLength) + "..."
-            : post.caption}
-          {isLong && (
+        {/* Actions */}
+        <div className="flex items-center gap-5 px-4 py-3">
+          {/* Like */}
+          <div className="flex items-center gap-1.5">
             <button
-              onClick={() => setShowFull(!showFull)}
-              className="text-neutral-500 hover:text-neutral-300 text-sm ml-1 transition-colors"
+              onClick={handleLike}
+              className={`transition-transform ${likeAnim ? "scale-125" : "scale-100"} duration-200`}
             >
-              {showFull ? "Show Less" : "Show More"}
+              <Image
+                src={liked ? likedIcon : likeIcon}
+                alt="like"
+                width={22}
+                height={22}
+              />
             </button>
-          )}
-        </p>
+            <button
+              onClick={() => setShowLikesModal(true)}
+              className="text-neutral-400 hover:text-white text-sm transition-colors"
+            >
+              {likeCount}
+            </button>
+          </div>
+
+          {/* Comment */}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setShowCommentsModal(true)}
+              className="text-neutral-400 hover:text-white transition-colors"
+            >
+              <Image src={commentIcon} alt="comment" width={22} height={22} />
+            </button>
+            <button
+              onClick={() => setShowCommentsModal(true)}
+              className="text-neutral-400 hover:text-white text-sm transition-colors"
+            >
+              {commentCount}
+            </button>
+          </div>
+
+          {/* Share */}
+          <div className="flex items-center gap-1.5">
+            <button className="text-neutral-400 hover:text-white transition-colors">
+              <Image src={shareIcon} alt="share" width={22} height={22} />
+            </button>
+            <span className="text-neutral-400 text-sm">
+              {post.shareCount ?? 0}
+            </span>
+          </div>
+
+          {/* Saved */}
+          <button className="ml-auto text-neutral-400 hover:text-white transition-colors">
+            <Image src={savedIcon} alt="saved" width={22} height={22} />
+          </button>
+        </div>
+
+        {/* Caption */}
+        <div className="px-4 pb-4">
+          <p className="text-white text-sm font-semibold">{post.author.name}</p>
+          <p className="text-neutral-300 text-sm mt-0.5">
+            {isLong && !showFull
+              ? post.caption.slice(0, maxLength) + "..."
+              : post.caption}
+            {isLong && (
+              <button
+                onClick={() => setShowFull(!showFull)}
+                className="text-violet-400 hover:text-violet-300 text-sm ml-1 transition-colors"
+              >
+                {showFull ? "Show Less" : "Show More"}
+              </button>
+            )}
+          </p>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
