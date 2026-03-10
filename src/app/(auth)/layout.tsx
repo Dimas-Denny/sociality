@@ -1,6 +1,6 @@
 import Image from "next/image";
-import Element1 from "@/assets/svg/element1.svg";
-import Element2 from "@/assets/svg/element2.svg";
+import element1 from "@/assets/svg/element1.svg";
+import element2 from "@/assets/svg/element2.svg";
 
 export default function AuthLayout({
   children,
@@ -9,23 +9,23 @@ export default function AuthLayout({
 }) {
   return (
     <div className="relative min-h-screen w-full bg-base-black overflow-hidden flex items-center justify-center">
-      {/* Background gradient elements */}
-      <Image
-        src={Element1}
-        alt=""
-        width={600}
-        height={600}
-        className="absolute -bottom-20 left-0 pointer-events-none select-none"
-        priority
-      />
-      <Image
-        src={Element2}
-        alt=""
-        width={400}
-        height={400}
-        className="absolute -bottom-10 right-0 pointer-events-none select-none"
-        priority
-      />
+      <div className="pointer-events-none absolute bottom-0 left-0 h-[60vh] w-full">
+        <Image
+          src={element1}
+          alt=""
+          fill
+          priority
+          className="select-none object-cover opacity-70 blur-[2px] "
+        />
+
+        <Image
+          src={element2}
+          alt=""
+          fill
+          priority
+          className="select-none object-cover opacity-60 blur-[2px] "
+        />
+      </div>
       {/* Card */}
       <div className="relative z-10 w-full max-w-sm mx-4">{children}</div>
     </div>

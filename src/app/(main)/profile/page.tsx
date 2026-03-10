@@ -1,0 +1,438 @@
+"use client";
+
+import Image from "next/image";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import api from "@/lib/api/axios";
+import BottomBar from "@/components/layout/BottomBar";
+import savedIcon from "@/assets/svg/saved.svg";
+import shareIcon from "@/assets/svg/share.svg";
+import postIcon from "@/assets/svg/post.svg";
+
+type ProfileData = {
+  id: number;
+  name: string;
+  username: string;
+  avatarUrl: string | null;
+  bio: string | null;
+  postCount: number;
+  followerCount: number;
+  followingCount: number;
+  likeCount: number;
+};
+
+type Post = {
+  id: number;
+  imageUrl: string;
+};
+
+function formatCount(n: number): string {
+  if (n >= 1_000_000)
+    return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+  if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
+  return String(n);
+}
+
+function Avatar({
+  url,
+  name,
+  size,
+}: {
+  url: string | null;
+  name?: string;
+  size: number;
+}) {
+  if (url) {
+    return (
+      <Image
+        src={url}
+        alt="avatar"
+        width={size}
+        height={size}
+        className="shrink-0 rounded-full object-cover"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+
+  return (
+    <div
+      className="flex shrink-0 items-center justify-center rounded-full bg-neutral-700 font-bold text-white"
+      style={{ width: size, height: size, fontSize: size * 0.35 }}
+    >
+      {name?.charAt(0).toUpperCase() ?? "?"}
+    </div>
+  );
+}
+
+export default function ProfilePage() {
+  const router = useRouter();
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [savedPosts, setSavedPosts] = useState<Post[]>([]);
+  const [activeTab, setActiveTab] = useState<"posts" | "saved">("posts");
+  const [loading, setLoading] = useState(true);
+  const [loadingSaved, setLoadingSaved] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+    fetchAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const fetchAll = async () => {
+    try {
+      const [profileRes, postsRes] = await Promise.all([
+        api.get("/me"),
+        api.get("/me/posts").catch(() => ({ data: null })),
+      ]);
+
+      const raw = profileRes.data?.data;
+
+      setProfile({
+        ...raw.profile,
+        postCount: raw.stats?.posts ?? 0,
+        followerCount: raw.stats?.followers ?? 0,
+        followingCount: raw.stats?.following ?? 0,
+        likeCount: raw.stats?.likes ?? 0,
+      });
+
+      const postsData =
+        postsRes.data?.data?.items ??
+        postsRes.data?.data?.posts ??
+        postsRes.data?.data ??
+        [];
+
+      setPosts(Array.isArray(postsData) ? postsData : []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchSavedPosts = async () => {
+    try {
+      setLoadingSaved(true);
+      const res = await api.get("/me/saved");
+      const data =
+        res.data?.data?.posts ??
+        res.data?.data?.saved ??
+        res.data?.data ??
+        res.data ??
+        [];
+
+      setSavedPosts(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Fetch saved error:", err);
+      setSavedPosts([]);
+    } finally {
+      setLoadingSaved(false);
+    }
+  };
+
+  const handleTabChange = (tab: "posts" | "saved") => {
+    setActiveTab(tab);
+    if (tab === "saved" && savedPosts.length === 0) {
+      fetchSavedPosts();
+    }
+  };
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/users/${profile?.username}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      const el = document.createElement("input");
+      el.value = url;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-black">
+        <span className="text-sm text-neutral-500">Loading...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-black pb-32 md:pb-16">
+      {/* Mobile Header */}
+      <div className="flex items-center justify-between px-4 pt-5 pb-3 md:hidden">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-white"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+          <span className="text-base font-semibold">{profile?.name}</span>
+        </button>
+
+        <Avatar
+          url={profile?.avatarUrl ?? null}
+          name={profile?.name}
+          size={36}
+        />
+      </div>
+
+      <div className="mx-auto w-full max-w-5xl px-4 md:px-6 lg:px-8">
+        <div className="md:mx-auto md:max-w-3xl">
+          {/* Desktop top spacing */}
+          <div className="hidden md:block md:h-6" />
+
+          {/* Profile header block */}
+          <div className="space-y-4 md:space-y-6">
+            {/* Mobile layout */}
+            <div className="space-y-4 md:hidden">
+              <div className="flex items-center gap-3">
+                <Avatar
+                  url={profile?.avatarUrl ?? null}
+                  name={profile?.name}
+                  size={56}
+                />
+                <div className="flex flex-col">
+                  <span className="text-base font-bold leading-tight text-white">
+                    {profile?.name}
+                  </span>
+                  <span className="text-sm text-neutral-500">
+                    @{profile?.username}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => router.push("/profile/edit")}
+                  className="flex-1 rounded-full border border-neutral-700 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-neutral-800"
+                >
+                  Edit Profile
+                </button>
+
+                <button
+                  onClick={handleShare}
+                  className="relative flex h-10 w-10 items-center justify-center rounded-full border border-neutral-700 transition-colors hover:bg-neutral-800"
+                >
+                  <Image src={shareIcon} alt="Share" width={18} height={18} />
+                  {copied && (
+                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-neutral-800 px-2 py-1 text-xs text-white">
+                      Link copied!
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              <p className="text-sm leading-relaxed text-neutral-300">
+                {profile?.bio && profile.bio.trim() !== ""
+                  ? profile.bio
+                  : "No bio yet. Tap Edit Profile to add one ✨"}
+              </p>
+            </div>
+
+            {/* Desktop layout */}
+            <div className="hidden md:flex md:items-start md:justify-between md:gap-6">
+              <div className="flex min-w-0 flex-1 items-start gap-4">
+                <Avatar
+                  url={profile?.avatarUrl ?? null}
+                  name={profile?.name}
+                  size={64}
+                />
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <p className="text-lg font-bold leading-tight text-white">
+                        {profile?.name}
+                      </p>
+                      <p className="text-sm text-neutral-500">
+                        @{profile?.username}
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="mt-4 text-sm leading-relaxed text-neutral-300">
+                    {profile?.bio && profile.bio.trim() !== ""
+                      ? profile.bio
+                      : "No bio yet. Tap Edit Profile to add one ✨"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex shrink-0 items-center gap-3">
+                <button
+                  onClick={() => router.push("/profile/edit")}
+                  className="rounded-full border border-neutral-700 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-neutral-800"
+                >
+                  Edit Profile
+                </button>
+
+                <button
+                  onClick={handleShare}
+                  className="relative flex h-10 w-10 items-center justify-center rounded-full border border-neutral-700 transition-colors hover:bg-neutral-800"
+                >
+                  <Image src={shareIcon} alt="Share" width={18} height={18} />
+                  {copied && (
+                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-neutral-800 px-2 py-1 text-xs text-white">
+                      Link copied!
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-4 divide-x divide-neutral-800 py-1 text-center">
+              {[
+                { label: "Post", value: profile?.postCount ?? 0 },
+                { label: "Followers", value: profile?.followerCount ?? 0 },
+                { label: "Following", value: profile?.followingCount ?? 0 },
+                { label: "Likes", value: profile?.likeCount ?? 0 },
+              ].map((stat) => (
+                <div
+                  key={stat.label}
+                  className="flex flex-col items-center gap-0.5 px-2"
+                >
+                  <span className="text-base font-bold text-white md:text-lg">
+                    {formatCount(stat.value)}
+                  </span>
+                  <span className="text-xs text-neutral-500">{stat.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-neutral-800">
+              <button
+                onClick={() => handleTabChange("posts")}
+                className={`flex flex-1 items-center justify-center gap-2 border-b-2 py-3 text-sm font-semibold transition-colors ${
+                  activeTab === "posts"
+                    ? "border-white text-white"
+                    : "border-transparent text-neutral-500"
+                }`}
+              >
+                <Image src={postIcon} alt="Posts" width={18} height={18} />
+                Gallery
+              </button>
+
+              <button
+                onClick={() => handleTabChange("saved")}
+                className={`flex flex-1 items-center justify-center gap-2 border-b-2 py-3 text-sm font-semibold transition-colors ${
+                  activeTab === "saved"
+                    ? "border-white text-white"
+                    : "border-transparent text-neutral-500"
+                }`}
+              >
+                <Image src={savedIcon} alt="Saved" width={18} height={18} />
+                Saved
+              </button>
+            </div>
+
+            {/* Gallery Content */}
+            {activeTab === "posts" && (
+              <>
+                {posts.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
+                    <p className="text-xl font-bold text-white">
+                      Your story starts here
+                    </p>
+                    <p className="max-w-xs text-sm leading-relaxed text-neutral-500">
+                      Share your first post and let the world see your moments,
+                      passions, and memories.
+                    </p>
+                    <button
+                      onClick={() => router.push("/add-post")}
+                      className="mt-2 rounded-full bg-violet-600 px-8 py-3 font-semibold text-white transition-colors hover:bg-violet-500"
+                    >
+                      Upload My First Post
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-1 md:gap-1.5">
+                    {posts.map((post) => (
+                      <button
+                        key={post.id}
+                        className="relative aspect-square overflow-hidden rounded-sm md:rounded-md"
+                        onClick={() => router.push(`/posts/${post.id}`)}
+                      >
+                        <Image
+                          src={post.imageUrl}
+                          alt="post"
+                          fill
+                          className="object-cover"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Saved Content */}
+            {activeTab === "saved" && (
+              <>
+                {loadingSaved ? (
+                  <div className="py-12 text-center text-sm text-neutral-500">
+                    Loading...
+                  </div>
+                ) : savedPosts.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
+                    <p className="text-lg font-bold text-white">
+                      No saved posts yet
+                    </p>
+                    <p className="max-w-xs text-sm text-neutral-500">
+                      Tap the bookmark icon on any post to save it here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-1 md:gap-1.5">
+                    {savedPosts.map((post) => (
+                      <button
+                        key={post.id}
+                        className="relative aspect-square overflow-hidden rounded-sm md:rounded-md"
+                        onClick={() => router.push(`/posts/${post.id}`)}
+                      >
+                        <Image
+                          src={post.imageUrl}
+                          alt="post"
+                          fill
+                          className="object-cover"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <BottomBar />
+    </div>
+  );
+}

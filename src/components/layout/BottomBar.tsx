@@ -15,13 +15,16 @@ export default function BottomBar({ onHome }: { onHome?: () => void }) {
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
+
       if (currentScrollY > lastScrollY && currentScrollY > 50) {
         setVisible(false);
       } else {
         setVisible(true);
       }
+
       setLastScrollY(currentScrollY);
     };
+
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY]);
@@ -30,6 +33,7 @@ export default function BottomBar({ onHome }: { onHome?: () => void }) {
     if (onHome) {
       onHome();
     }
+
     if (pathname === "/feed") {
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else {
@@ -54,55 +58,68 @@ export default function BottomBar({ onHome }: { onHome?: () => void }) {
         visible ? "translate-y-0" : "translate-y-32"
       }`}
     >
-      <div className="flex items-center justify-between bg-neutral-950 border border-neutral-800 rounded-full px-8 shadow-2xl">
-        {/* Home */}
-        <button
-          onClick={handleHome}
-          className="flex flex-col items-center gap-1"
-        >
-          <div className="w-10 h-10 flex items-center justify-center">
-            <Image src={homeIcon} alt="Home" width={20} height={20} />
-          </div>
-          <span className="text-xs text-primary-200 font-medium">Home</span>
-        </button>
-
-        {/* Add Post */}
-        <button
-          onClick={() => router.push("/add-post")}
-          className="w-10 h-10 flex items-center justify-center rounded-full bg-violet-600 hover:bg-violet-500 transition-colors shadow-lg"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="w-6 h-6 text-white"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+      <div className="mx-auto w-full max-w-[320px] rounded-full border border-neutral-800 bg-neutral-950 px-8 shadow-2xl md:max-w-[220px] md:px-5">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={handleHome}
+            className="flex flex-col items-center gap-1 py-2 md:gap-0.5 md:py-1.5"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2.5}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-        </button>
+            <div className="flex h-10 w-10 items-center justify-center md:h-8 md:w-8">
+              <Image
+                src={homeIcon}
+                alt="Home"
+                width={20}
+                height={20}
+                className="md:h-[16px] md:w-[16px]"
+              />
+            </div>
+            <span className="text-xs font-medium text-primary-200 md:text-[10px]">
+              Home
+            </span>
+          </button>
 
-        {/* Profile */}
-        <button
-          onClick={handleProfile}
-          className="flex flex-col items-center gap-1"
-        >
-          <div className="w-10 h-10 flex items-center justify-center transition-colors">
-            <Image src={frameIcon} alt="Profile" width={20} height={20} />
-          </div>
-          <span
-            className={`text-xs font-medium ${
-              isProfile ? "text-primary-200" : "text-neutral-400"
-            }`}
+          <button
+            onClick={() => router.push("/add-post")}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-600 shadow-lg transition-colors hover:bg-violet-500 md:h-8 md:w-8"
           >
-            Profile
-          </span>
-        </button>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6 text-white md:h-4 md:w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.5}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+          </button>
+
+          <button
+            onClick={handleProfile}
+            className="flex flex-col items-center gap-1 py-2 md:gap-0.5 md:py-1.5"
+          >
+            <div className="flex h-10 w-10 items-center justify-center transition-colors md:h-8 md:w-8">
+              <Image
+                src={frameIcon}
+                alt="Profile"
+                width={20}
+                height={20}
+                className="md:h-[16px] md:w-[16px]"
+              />
+            </div>
+            <span
+              className={`text-xs font-medium md:text-[10px] ${
+                isProfile ? "text-primary-200" : "text-neutral-400"
+              }`}
+            >
+              Profile
+            </span>
+          </button>
+        </div>
       </div>
     </div>
   );

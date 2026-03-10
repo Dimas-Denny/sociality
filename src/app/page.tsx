@@ -1,62 +1,59 @@
 import Image from "next/image";
 import Link from "next/link";
-import logo1 from "@/assets/png/logo1.png";
+import logo2 from "@/assets/png/logo2.png";
 import element1 from "@/assets/svg/element1.svg";
 import element2 from "@/assets/svg/element2.svg";
 
 export default function WelcomePage() {
   return (
-    <div className="relative min-h-screen bg-black flex flex-col items-center justify-center px-6 overflow-hidden">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-black px-6">
       {/* Background Elements */}
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+      <div className="pointer-events-none absolute bottom-0 left-0 h-[60vh] w-full">
         <Image
           src={element1}
           alt=""
-          width={600}
-          height={600}
-          className="absolute -bottom-20 left-0 pointer-events-none select-none"
+          fill
           priority
+          className="select-none object-cover opacity-70 blur-[2px] "
         />
+
         <Image
           src={element2}
           alt=""
-          width={400}
-          height={400}
-          className="absolute -bottom-10 right-0 pointer-events-none select-none"
+          fill
           priority
+          className="select-none object-cover opacity-60 blur-[2px] "
         />
       </div>
 
       {/* Content */}
-      <div className="relative z-10 flex flex-col items-center gap-8 max-w-sm w-full">
-        {/* Logo */}
+      <div className="relative z-10 flex w-full max-w-sm flex-col items-center gap-8">
         <div className="flex flex-col items-center gap-4">
           <Image
-            src={logo1}
+            src={logo2}
             alt="Sociality"
             width={200}
             height={200}
             className="object-contain"
           />
           <div className="flex flex-col items-center gap-2">
-            <h1 className="text-base-white font-bold text-3xl">Sociality</h1>
-            <p className="text-neutral-400 text-sm text-center">
+            <h1 className="text-3xl font-bold text-base-white">Sociality</h1>
+            <p className="text-center text-sm text-neutral-400">
               Share your moments, connect with the world.
             </p>
           </div>
         </div>
 
-        {/* Buttons */}
-        <div className="flex flex-col gap-3 w-full">
+        <div className="flex w-full flex-col gap-3">
           <Link
             href="/login"
-            className="w-full text-center bg-primary-300 hover:bg-primary-200 text-base-white font-semibold py-3 rounded-full transition-colors"
+            className="w-full rounded-full bg-primary-300 py-3 text-center font-semibold text-base-white transition-colors hover:bg-primary-200"
           >
             Login
           </Link>
           <Link
             href="/register"
-            className="w-full text-center border border-neutral-700 text-base-white font-semibold py-3 rounded-full hover:bg-neutral-800 transition-colors"
+            className="w-full rounded-full border border-neutral-700 py-3 text-center font-semibold text-base-white transition-colors hover:bg-neutral-800"
           >
             Register
           </Link>

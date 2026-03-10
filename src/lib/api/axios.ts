@@ -10,7 +10,6 @@ const api = axios.create({
   },
 });
 
-// Attach Bearer token otomatis dari localStorage
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("token");
@@ -18,19 +17,27 @@ api.interceptors.request.use((config) => {
       config.headers.Authorization = `Bearer ${token}`;
     }
   }
+
   return config;
 });
 
-// Handle 401 → redirect ke login
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+    const url = error.config?.url ?? "";
+
+    const isAuthRequest =
+      url.includes("/auth/login") || url.includes("/auth/register");
+
+    if (status === 401 && !isAuthRequest) {
       if (typeof window !== "undefined") {
         localStorage.removeItem("token");
+        localStorage.removeItem("user");
         window.location.href = "/login";
       }
     }
+
     return Promise.reject(error);
   },
 );

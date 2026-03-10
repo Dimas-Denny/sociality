@@ -15,9 +15,14 @@ import { loginSchema, LoginInput } from "@/lib/validations/auth";
 import { loginApi } from "@/lib/api/auth";
 import Logo from "@/assets/svg/logo.svg";
 
+type ApiErrorResponse = {
+  success: boolean;
+  message: string;
+  data: unknown;
+};
+
 export default function LoginPage() {
   const router = useRouter();
-
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -37,86 +42,89 @@ export default function LoginPage() {
       router.push("/feed?tab=explore");
     },
     onError: (error) => {
-      if (axios.isAxiosError(error)) {
-        toast.error(error.response?.data?.message ?? "Login failed");
+      if (axios.isAxiosError<ApiErrorResponse>(error)) {
+        const message =
+          error.response?.data?.message ?? "Email atau password salah";
+
+        toast.error(message);
+        return;
       }
+
+      toast.error("Login failed");
     },
   });
 
   const onSubmit = (data: LoginInput) => mutate(data);
 
   return (
-    <div className="backdrop-blur-md border border-neutral-800 rounded-3xl p-8 flex flex-col gap-6">
-      {/* Logo */}
+    <div className="flex flex-col gap-6 rounded-3xl border border-neutral-800 p-8 backdrop-blur-md">
       <div className="flex flex-col items-center gap-3">
         <div className="flex items-center gap-2">
           <Image src={Logo} alt="Sociality" width={28} height={28} />
-          <span className="text-base-white font-semibold text-2xl">
+          <span className="text-2xl font-semibold text-base-white">
             Sociality
           </span>
         </div>
-        <h1 className="text-base-white font-bold text-2xl mt-2">
+        <h1 className="mt-2 text-2xl font-bold text-base-white">
           Welcome Back!
         </h1>
       </div>
 
-      {/* Form */}
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-        {/* Email */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-base-white text-sm font-medium">Email</label>
+          <label className="text-sm font-medium text-base-white">Email</label>
           <input
             {...register("email")}
             type="email"
             placeholder="Enter your email"
-            className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-base-white placeholder:text-neutral-500 text-sm focus:outline-none focus:border-primary-300 transition-colors"
+            className="w-full rounded-xl border border-neutral-800 bg-neutral-950 px-4 py-3 text-sm text-base-white placeholder:text-neutral-500 transition-colors focus:border-primary-300 focus:outline-none"
           />
           {errors.email && (
-            <p className="text-accent-red text-xs">{errors.email.message}</p>
+            <p className="text-xs text-accent-red">{errors.email.message}</p>
           )}
         </div>
 
-        {/* Password */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-base-white text-sm font-medium">
+          <label className="text-sm font-medium text-base-white">
             Password
           </label>
+
           <div className="relative">
             <input
               {...register("password")}
               type={showPassword ? "text" : "password"}
               placeholder="Enter your password"
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 pr-11 text-base-white placeholder:text-neutral-500 text-sm focus:outline-none focus:border-primary-300 transition-colors"
+              className="w-full rounded-xl border border-neutral-800 bg-neutral-950 px-4 py-3 pr-11 text-sm text-base-white placeholder:text-neutral-500 transition-colors focus:border-primary-300 focus:outline-none"
             />
+
             <button
               type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 transition-colors"
+              onClick={() => setShowPassword((prev) => !prev)}
+              className="absolute top-1/2 right-3 -translate-y-1/2 text-neutral-500 transition-colors hover:text-neutral-300"
             >
               {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
             </button>
           </div>
+
           {errors.password && (
-            <p className="text-accent-red text-xs">{errors.password.message}</p>
+            <p className="text-xs text-accent-red">{errors.password.message}</p>
           )}
         </div>
 
-        {/* Button */}
         <button
           type="submit"
           disabled={isPending}
-          className="w-full bg-primary-300 hover:bg-primary-200 disabled:opacity-60 text-base-white font-semibold py-3 rounded-full transition-colors mt-2"
+          className="mt-2 w-full rounded-full bg-primary-300 py-3 font-semibold text-base-white transition-colors hover:bg-primary-200 disabled:opacity-60"
         >
           {isPending ? "Loading..." : "Login"}
         </button>
       </form>
 
-      {/* Register link */}
-      <p className="text-center text-neutral-25 text-sm">
+      <p className="text-center text-sm text-neutral-25">
         Don&apos;t have an account?{" "}
         <Link
           href="/register"
-          className="text-primary-200 font-semibold hover:text-primary-300 transition-colors"
+          className="font-semibold text-primary-200 transition-colors hover:text-primary-300"
         >
           Register
         </Link>

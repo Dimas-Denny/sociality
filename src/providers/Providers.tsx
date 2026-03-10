@@ -24,7 +24,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ReduxProvider store={store}>
       <QueryClientProvider client={queryClient}>
         {children}
-        <Toaster />
+
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>
     </ReduxProvider>

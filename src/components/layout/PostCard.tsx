@@ -69,14 +69,14 @@ function AuthorAvatar({
         alt={name}
         width={36}
         height={36}
-        className="rounded-full object-cover shrink-0"
+        className="shrink-0 rounded-full object-cover"
         style={{ width: 36, height: 36 }}
       />
     );
   }
 
   return (
-    <div className="w-9 h-9 rounded-full bg-neutral-700 flex items-center justify-center text-white text-sm font-bold shrink-0">
+    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-700 text-sm font-bold text-white">
       {name?.charAt(0).toUpperCase() ?? "?"}
     </div>
   );
@@ -221,12 +221,22 @@ export default function PostCard({ post }: { post: Post }) {
         <CommentsModal
           postId={post.id}
           postImageUrl={post.imageUrl ?? undefined}
+          authorName={post.author.name}
+          authorUsername={post.author.username}
+          authorAvatarUrl={post.author.avatarUrl ?? undefined}
+          caption={post.caption ?? ""}
+          createdAt={post.createdAt}
+          initialLiked={post.likedByMe ?? false}
+          initialLikeCount={post.likeCount ?? 0}
+          initialCommentCount={post.commentCount ?? 0}
+          initialShareCount={post.shareCount ?? 0}
+          initialSaved={post.savedByMe ?? false}
           onClose={() => setShowCommentsModal(false)}
           onCommentAdded={() => {}}
         />
       )}
 
-      <div className="w-full overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900">
+      <div className="w-full overflow-hidden border border-neutral-800 rounded-2xl bg-neutral-900 md:max-w-[420px] ">
         <div className="flex items-center gap-3 px-4 pt-4 pb-3">
           <button onClick={goToAuthorProfile}>
             <AuthorAvatar
@@ -248,7 +258,7 @@ export default function PostCard({ post }: { post: Post }) {
                 {timeAgo(post.createdAt)}
               </p>
               {isMyPost && (
-                <span className="text-[10px] rounded-full border border-violet-500/40 bg-violet-500/10 px-2 py-0.5 text-violet-300">
+                <span className="rounded-full border border-violet-500/40 bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-300">
                   You
                 </span>
               )}
@@ -258,19 +268,19 @@ export default function PostCard({ post }: { post: Post }) {
 
         {post.imageUrl && (
           <div
-            className="relative w-full aspect-video cursor-pointer"
+            className="relative aspect-square w-full cursor-pointer md:aspect-[4/5]"
             onClick={goToPostDetail}
           >
             <Image
               src={post.imageUrl}
               alt="post"
               fill
-              className="object-cover"
+              className="object-contain"
             />
           </div>
         )}
 
-        <div className="flex items-center gap-5 px-4 py-3">
+        <div className="flex items-center gap-4 px-4 py-3">
           <div className="flex items-center gap-1.5">
             <button
               onClick={handleLike}
@@ -281,14 +291,15 @@ export default function PostCard({ post }: { post: Post }) {
               <Image
                 src={liked ? likedIcon : likeIcon}
                 alt="like"
-                width={22}
-                height={22}
+                width={18}
+                height={18}
+                className="md:h-[18px] md:w-[18px]"
               />
             </button>
 
             <button
               onClick={() => setShowLikesModal(true)}
-              className="text-sm text-neutral-400 transition-colors hover:text-white"
+              className="text-xs text-neutral-400 transition-colors hover:text-white"
             >
               {likeCount}
             </button>
@@ -299,12 +310,12 @@ export default function PostCard({ post }: { post: Post }) {
               onClick={() => setShowCommentsModal(true)}
               className="text-neutral-400 transition-colors hover:text-white"
             >
-              <Image src={commentIcon} alt="comment" width={22} height={22} />
+              <Image src={commentIcon} alt="comment" width={18} height={18} />
             </button>
 
             <button
               onClick={() => setShowCommentsModal(true)}
-              className="text-sm text-neutral-400"
+              className="text-xs text-neutral-400"
             >
               {displayedCommentCount}
             </button>
@@ -315,10 +326,10 @@ export default function PostCard({ post }: { post: Post }) {
               onClick={handleShare}
               className="text-neutral-400 transition-colors hover:text-white"
             >
-              <Image src={shareIcon} alt="share" width={22} height={22} />
+              <Image src={shareIcon} alt="share" width={18} height={18} />
             </button>
 
-            <span className="text-sm text-neutral-400">
+            <span className="text-xs text-neutral-400">
               {displayedShareCount}
             </span>
 
@@ -338,17 +349,17 @@ export default function PostCard({ post }: { post: Post }) {
             <Image
               src={saved ? savedActiveIcon : savedIcon}
               alt="saved"
-              width={22}
-              height={22}
+              width={18}
+              height={18}
               className={saved ? "brightness-200" : ""}
             />
           </button>
         </div>
 
         <div className="px-4 pb-4">
-          <p className="text-sm font-semibold text-white">{post.author.name}</p>
+          <p className="text-xs font-semibold text-white">{post.author.name}</p>
 
-          <p className="mt-0.5 text-sm text-neutral-300">
+          <p className="mt-1 text-xs leading-5 text-neutral-300">
             {isLong && !showFull
               ? `${(post.caption ?? "").slice(0, maxLength)}...`
               : post.caption}
@@ -356,7 +367,7 @@ export default function PostCard({ post }: { post: Post }) {
             {isLong && (
               <button
                 onClick={() => setShowFull((prev) => !prev)}
-                className="ml-1 text-sm text-violet-400 transition-colors hover:text-violet-300"
+                className="ml-1 text-xs text-violet-400 transition-colors hover:text-violet-300"
               >
                 {showFull ? "Show Less" : "Show More"}
               </button>

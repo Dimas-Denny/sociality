@@ -45,50 +45,57 @@ function FeedContent() {
   };
 
   return (
-    <div className="bg-black min-h-screen pb-32">
+    <div className="min-h-screen bg-black pb-32">
       <div ref={topRef} />
 
-      <div className="px-6 pt-4 pb-2">
-        <div className="inline-flex rounded-full bg-neutral-900 p-1">
-          <button
-            onClick={() => handleChangeTab("feed")}
-            className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${
-              activeTab === "feed"
-                ? "bg-violet-600 text-white shadow-lg"
-                : "text-neutral-400 hover:text-white hover:bg-neutral-800"
-            }`}
-          >
-            <span>🏠</span>
-            <span>Feed</span>
-          </button>
+      {/* Centered column */}
+      <div className="mx-auto flex w-full max-w-xl flex-col items-center px-4 pt-4 pb-2 md:px-6">
+        <div className="w-full md:flex md:justify-center">
+          <div className="inline-flex rounded-full bg-neutral-900 p-1">
+            <button
+              onClick={() => handleChangeTab("feed")}
+              className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${
+                activeTab === "feed"
+                  ? "bg-violet-600 text-white shadow-lg"
+                  : "text-neutral-400 hover:bg-neutral-800 hover:text-white"
+              }`}
+            >
+              <span>🏠</span>
+              <span>Feed</span>
+            </button>
 
-          <button
-            onClick={() => handleChangeTab("explore")}
-            className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${
-              activeTab === "explore"
-                ? "bg-violet-600 text-white shadow-lg"
-                : "text-neutral-400 hover:text-white hover:bg-neutral-800"
-            }`}
-          >
-            <span>⭕</span>
-            <span>Explore</span>
-          </button>
+            <button
+              onClick={() => handleChangeTab("explore")}
+              className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${
+                activeTab === "explore"
+                  ? "bg-violet-600 text-white shadow-lg"
+                  : "text-neutral-400 hover:bg-neutral-800 hover:text-white"
+              }`}
+            >
+              <span>⭕</span>
+              <span>Explore</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="px-6 py-4 space-y-4">
+      <div className="mx-auto flex w-full max-w-xl flex-col items-center px-4 py-4 md:px-6">
         {loading ? (
-          <div className="text-neutral-500 text-center py-12 text-sm">
+          <div className="py-12 text-center text-sm text-neutral-500">
             Loading...
           </div>
         ) : posts.length === 0 ? (
-          <div className="text-neutral-500 text-center py-12 text-sm">
+          <div className="py-12 text-center text-sm text-neutral-500">
             {activeTab === "feed"
               ? "Follow some people to see posts"
               : "No posts available"}
           </div>
         ) : (
-          posts.map((post) => <PostCard key={post.id} post={post} />)
+          <div className="flex w-full flex-col items-center gap-4">
+            {posts.map((post) => (
+              <PostCard key={post.id} post={post} />
+            ))}
+          </div>
         )}
       </div>
 
@@ -101,8 +108,8 @@ export default function FeedPage() {
   return (
     <Suspense
       fallback={
-        <div className="bg-black min-h-screen flex items-center justify-center">
-          <span className="text-neutral-500 text-sm">Loading...</span>
+        <div className="flex min-h-screen items-center justify-center bg-black">
+          <span className="text-sm text-neutral-500">Loading...</span>
         </div>
       }
     >
