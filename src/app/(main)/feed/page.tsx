@@ -1,12 +1,11 @@
 "use client";
 
-import { Suspense } from "react";
-import { useState, useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import PostCard from "@/components/layout/PostCard";
 import BottomBar from "@/components/layout/BottomBar";
 import { Post } from "@/types/post";
-import api from "@/lib/api/axios";
+import { getFeedApi, getPostsApi } from "@/lib/api/posts";
 
 function FeedContent() {
   const searchParams = useSearchParams();
@@ -18,26 +17,27 @@ function FeedContent() {
   const fetchPosts = async (tab: "feed" | "explore") => {
     try {
       setLoading(true);
-      const endpoint = tab === "feed" ? "/feed" : "/posts";
-      const response = await api.get(endpoint);
-      const data =
-        tab === "feed"
-          ? (response.data?.data?.items ?? [])
-          : (response.data?.data?.posts ?? []);
-      setPosts(Array.isArray(data) ? data : []);
+      const data = tab === "feed" ? await getFeedApi() : await getPostsApi();
+      setPosts(data);
     } catch (error) {
       console.error(`${tab} error:`, error);
+      setPosts([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const tab = searchParams.get("tab") as "feed" | "explore" | null;
+    const tab = searchParams.get("tab");
     const initialTab = tab === "explore" ? "explore" : "feed";
     setActiveTab(initialTab);
     fetchPosts(initialTab);
   }, [searchParams]);
+
+  const handleChangeTab = (tab: "feed" | "explore") => {
+    setActiveTab(tab);
+    fetchPosts(tab);
+  };
 
   const handleHome = () => {
     topRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -48,14 +48,10 @@ function FeedContent() {
     <div className="bg-black min-h-screen pb-32">
       <div ref={topRef} />
 
-      {/* Tab */}
       <div className="px-6 pt-4 pb-2">
         <div className="inline-flex rounded-full bg-neutral-900 p-1">
           <button
-            onClick={() => {
-              setActiveTab("feed");
-              fetchPosts("feed");
-            }}
+            onClick={() => handleChangeTab("feed")}
             className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${
               activeTab === "feed"
                 ? "bg-violet-600 text-white shadow-lg"
@@ -65,11 +61,9 @@ function FeedContent() {
             <span>🏠</span>
             <span>Feed</span>
           </button>
+
           <button
-            onClick={() => {
-              setActiveTab("explore");
-              fetchPosts("explore");
-            }}
+            onClick={() => handleChangeTab("explore")}
             className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${
               activeTab === "explore"
                 ? "bg-violet-600 text-white shadow-lg"
@@ -82,7 +76,6 @@ function FeedContent() {
         </div>
       </div>
 
-      {/* Posts */}
       <div className="px-6 py-4 space-y-4">
         {loading ? (
           <div className="text-neutral-500 text-center py-12 text-sm">

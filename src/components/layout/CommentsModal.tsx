@@ -69,6 +69,7 @@ function CommentAvatar({
       />
     );
   }
+
   return (
     <div className="w-9 h-9 rounded-full bg-neutral-700 flex items-center justify-center text-white text-sm font-bold shrink-0">
       {name?.charAt(0).toUpperCase() ?? "?"}
@@ -80,10 +81,12 @@ export default function CommentsModal({
   postId,
   onClose,
   postImageUrl,
+  onCommentAdded,
 }: {
   postId: number;
   onClose: () => void;
   postImageUrl?: string;
+  onCommentAdded?: () => void;
 }) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,29 +96,32 @@ export default function CommentsModal({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetchComments();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const fetchComments = async () => {
+      try {
+        const response = await api.get(`/posts/${postId}/comments`);
+        const data = response.data?.data?.comments ?? [];
+        setComments(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Fetch comments error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const fetchComments = async () => {
-    try {
-      const response = await api.get(`/posts/${postId}/comments`);
-      const data = response.data?.data?.comments ?? [];
-      setComments(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Fetch comments error:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchComments();
+  }, [postId]);
 
   const handlePost = async () => {
-    if (!text.trim()) return;
+    const value = text.trim();
+    if (!value) return;
+
     try {
       setPosting(true);
+
       const response = await api.post(`/posts/${postId}/comments`, {
-        text: text.trim(),
+        text: value,
       });
+
       const newComment =
         response.data?.data?.comment ??
         response.data?.data ??
@@ -126,6 +132,7 @@ export default function CommentsModal({
         setComments((prev) => [newComment, ...prev]);
       }
 
+      onCommentAdded?.();
       setText("");
       setShowEmoji(false);
     } catch (error) {
@@ -146,14 +153,12 @@ export default function CommentsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black">
-      {/* Post image preview */}
       {postImageUrl && (
         <div className="relative w-full aspect-video shrink-0">
           <Image src={postImageUrl} alt="post" fill className="object-cover" />
         </div>
       )}
 
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-4 bg-neutral-950 sticky top-0 z-10 shrink-0">
         <h2 className="text-white font-bold text-lg">Comments</h2>
         <button
@@ -177,7 +182,6 @@ export default function CommentsModal({
         </button>
       </div>
 
-      {/* Comments List */}
       <div className="flex-1 overflow-y-auto bg-neutral-950 px-4 space-y-4 pb-4">
         {loading ? (
           <div className="text-neutral-500 text-center py-8 text-sm">
@@ -212,7 +216,6 @@ export default function CommentsModal({
         )}
       </div>
 
-      {/* Emoji Picker */}
       {showEmoji && (
         <div className="bg-neutral-900 border-t border-neutral-800 px-4 py-3 grid grid-cols-10 gap-2 shrink-0">
           {EMOJIS.map((emoji) => (
@@ -227,14 +230,16 @@ export default function CommentsModal({
         </div>
       )}
 
-      {/* Input */}
       <div className="bg-neutral-950 border-t border-neutral-800 px-4 py-3 flex items-center gap-3 shrink-0">
         <button
           onClick={() => setShowEmoji((prev) => !prev)}
-          className={`text-2xl transition-colors ${showEmoji ? "text-violet-400" : "text-neutral-400 hover:text-white"}`}
+          className={`text-2xl transition-colors ${
+            showEmoji ? "text-violet-400" : "text-neutral-400 hover:text-white"
+          }`}
         >
           😊
         </button>
+
         <input
           ref={inputRef}
           type="text"
@@ -244,6 +249,7 @@ export default function CommentsModal({
           placeholder="Add Comment"
           className="flex-1 bg-transparent text-white placeholder:text-neutral-500 text-sm focus:outline-none"
         />
+
         <button
           onClick={handlePost}
           disabled={posting || !text.trim()}

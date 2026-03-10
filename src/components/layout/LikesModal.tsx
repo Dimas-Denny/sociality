@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import api from "@/lib/api/axios";
 import axios from "axios";
@@ -13,6 +13,8 @@ type LikeUser = {
   avatarUrl?: string;
   followedByMe?: boolean;
 };
+
+type FollowedUsersMap = Record<string, boolean>;
 
 export default function LikesModal({
   postId,
@@ -27,68 +29,129 @@ export default function LikesModal({
   const [loading, setLoading] = useState(true);
   const [followLoading, setFollowLoading] = useState<string | null>(null);
   const [currentUsername, setCurrentUsername] = useState<string | null>(null);
+  const [followedUsers, setFollowedUsers] = useState<FollowedUsersMap>({});
 
-  useEffect(() => {
-    const raw = localStorage.getItem("user");
-    if (raw) {
-      const user = JSON.parse(raw);
-      setCurrentUsername(user.username);
-    }
-    fetchLikes();
-  }, []);
+  const getStorageKey = (userId: string | number) =>
+    `followed_${userId.toString()}`;
 
-  const fetchLikes = async () => {
+  const fetchLikes = useCallback(async () => {
     try {
+      setLoading(true);
+
       const response = await api.get(`/posts/${postId}/likes`);
       const data =
         response.data?.data?.users ||
         response.data?.data ||
         response.data ||
         [];
-      setUsers(Array.isArray(data) ? data : []);
+
+      const safeUsers = Array.isArray(data) ? data : [];
+      setUsers(safeUsers);
+
+      if (typeof window !== "undefined") {
+        try {
+          const stored = JSON.parse(
+            localStorage.getItem("followedUsers") || "{}",
+          );
+          const initialFollowState: FollowedUsersMap = {};
+
+          safeUsers.forEach((user: LikeUser) => {
+            const storageKey = getStorageKey(user.id);
+            initialFollowState[user.id] =
+              stored[storageKey] ?? user.followedByMe ?? false;
+          });
+
+          setFollowedUsers(initialFollowState);
+        } catch {
+          const fallbackState: FollowedUsersMap = {};
+          safeUsers.forEach((user: LikeUser) => {
+            fallbackState[user.id] = user.followedByMe ?? false;
+          });
+          setFollowedUsers(fallbackState);
+        }
+      }
     } catch (error) {
-      if (axios.isAxiosError(error))
+      if (axios.isAxiosError(error)) {
         console.error("Error fetching likes:", error.response?.data);
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, [postId]);
 
-  const handleFollow = async (username: string) => {
-    try {
-      setFollowLoading(username);
-      await api.post(`/follow/${username}`, {});
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.username === username ? { ...u, followedByMe: true } : u,
-        ),
-      );
-    } catch (error) {
-      if (axios.isAxiosError(error))
-        console.error("Follow error:", error.response?.data);
-    } finally {
-      setFollowLoading(null);
+  const updateFollowed = useCallback((userId: string, newFollowed: boolean) => {
+    setFollowedUsers((prev) => {
+      const updated = {
+        ...prev,
+        [userId]: newFollowed,
+      };
+
+      if (typeof window !== "undefined") {
+        try {
+          const stored = JSON.parse(
+            localStorage.getItem("followedUsers") || "{}",
+          );
+          stored[getStorageKey(userId)] = newFollowed;
+          localStorage.setItem("followedUsers", JSON.stringify(stored));
+        } catch {
+          // ignore error
+        }
+      }
+
+      return updated;
+    });
+  }, []);
+
+  const handleFollow = useCallback(
+    async (userId: string, username: string) => {
+      try {
+        setFollowLoading(username);
+        await api.post(`/follow/${username}`, {});
+        updateFollowed(userId, true);
+      } catch (error) {
+        if (axios.isAxiosError(error)) {
+          console.error("Follow error:", error.response?.data);
+        }
+      } finally {
+        setFollowLoading(null);
+      }
+    },
+    [updateFollowed],
+  );
+
+  const handleUnfollow = useCallback(
+    async (userId: string, username: string) => {
+      try {
+        setFollowLoading(username);
+        await api.delete(`/follow/${username}`);
+        updateFollowed(userId, false);
+      } catch (error) {
+        if (axios.isAxiosError(error)) {
+          console.error("Unfollow error:", error.response?.data);
+        }
+      } finally {
+        setFollowLoading(null);
+      }
+    },
+    [updateFollowed],
+  );
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const raw = localStorage.getItem("user");
+
+      if (raw) {
+        try {
+          const user = JSON.parse(raw);
+          setCurrentUsername(user.username ?? null);
+        } catch {
+          // ignore parse error
+        }
+      }
     }
-  };
 
-  const handleUnfollow = async (username: string) => {
-    try {
-      setFollowLoading(username);
-      await api.delete(`/follow/${username}`);
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.username === username ? { ...u, followedByMe: false } : u,
-        ),
-      );
-    } catch (error) {
-      if (axios.isAxiosError(error))
-        console.error("Unfollow error:", error.response?.data);
-    } finally {
-      setFollowLoading(null);
-    }
-  };
-
-  const otherUsers = users.filter((u) => u.username !== currentUsername);
+    fetchLikes();
+  }, [fetchLikes]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black">
@@ -99,15 +162,16 @@ export default function LikesModal({
       )}
 
       <div className="flex-1 overflow-y-auto bg-neutral-950 px-4 pb-8">
-        <div className="flex items-center justify-between py-4 sticky top-0 bg-neutral-950 z-10">
-          <h2 className="text-white font-bold text-lg">Likes</h2>
+        <div className="sticky top-0 z-10 flex items-center justify-between bg-neutral-950 py-4">
+          <h2 className="text-lg font-bold text-white">Likes</h2>
+
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-neutral-800 hover:bg-neutral-700 text-white transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-800 text-white transition-colors hover:bg-neutral-700"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="w-4 h-4"
+              className="h-4 w-4"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -123,65 +187,81 @@ export default function LikesModal({
         </div>
 
         {loading ? (
-          <div className="text-neutral-500 text-center py-8 text-sm">
+          <div className="py-8 text-center text-sm text-neutral-500">
             Loading...
           </div>
-        ) : otherUsers.length === 0 ? (
-          <div className="text-neutral-500 text-center py-8 text-sm">
+        ) : users.length === 0 ? (
+          <div className="py-8 text-center text-sm text-neutral-500">
             No likes yet
           </div>
         ) : (
           <div className="space-y-3">
-            {otherUsers.map((user) => (
-              <div key={user.id} className="flex items-center gap-3">
-                <Image
-                  src={user.avatarUrl ?? avatar}
-                  alt={user.name}
-                  width={44}
-                  height={44}
-                  className="rounded-full object-cover shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-semibold truncate">
-                    {user.name}
-                  </p>
-                  <p className="text-neutral-500 text-xs truncate">
-                    @{user.username}
-                  </p>
+            {users.map((user) => {
+              const isMe = user.username === currentUsername;
+              const isFollowed = followedUsers[user.id] ?? false;
+
+              return (
+                <div key={user.id} className="flex items-center gap-3">
+                  <Image
+                    src={user.avatarUrl ?? avatar}
+                    alt={user.name}
+                    width={44}
+                    height={44}
+                    className="shrink-0 rounded-full object-cover"
+                  />
+
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-white">
+                      {user.name}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-xs text-neutral-500">
+                        @{user.username}
+                      </p>
+
+                      {isMe && (
+                        <span className="rounded-full border border-violet-500/40 bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-300">
+                          You
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {!isMe &&
+                    (isFollowed ? (
+                      <button
+                        onClick={() => handleUnfollow(user.id, user.username)}
+                        disabled={followLoading === user.username}
+                        className="flex items-center gap-1.5 rounded-full border border-neutral-600 px-4 py-2 text-xs font-medium text-neutral-300 transition-colors hover:bg-neutral-800 disabled:opacity-50"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-3.5 w-3.5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                        Following
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleFollow(user.id, user.username)}
+                        disabled={followLoading === user.username}
+                        className="rounded-full bg-violet-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-violet-500 disabled:opacity-50"
+                      >
+                        {followLoading === user.username ? "..." : "Follow"}
+                      </button>
+                    ))}
                 </div>
-                {user.followedByMe ? (
-                  <button
-                    onClick={() => handleUnfollow(user.username)}
-                    disabled={followLoading === user.username}
-                    className="flex items-center gap-1.5 border border-neutral-600 text-neutral-300 text-xs font-medium px-4 py-2 rounded-full hover:bg-neutral-800 transition-colors disabled:opacity-50"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="w-3.5 h-3.5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                    Following
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => handleFollow(user.username)}
-                    disabled={followLoading === user.username}
-                    className="bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-4 py-2 rounded-full transition-colors disabled:opacity-50"
-                  >
-                    {followLoading === user.username ? "..." : "Follow"}
-                  </button>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

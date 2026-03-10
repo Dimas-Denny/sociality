@@ -31,9 +31,6 @@ export default function LoginPage() {
   const { mutate, isPending } = useMutation({
     mutationFn: loginApi,
     onSuccess: (data) => {
-      console.log("full response:", data);
-      console.log("user:", data.data.user);
-
       localStorage.setItem("token", data.data.token);
       localStorage.setItem("user", JSON.stringify(data.data.user));
       toast.success("Login successful!");
@@ -41,8 +38,6 @@ export default function LoginPage() {
     },
     onError: (error) => {
       if (axios.isAxiosError(error)) {
-        console.log("Status:", error.response?.status);
-        console.log("Response ", error.response?.data);
         toast.error(error.response?.data?.message ?? "Login failed");
       }
     },
