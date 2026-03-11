@@ -7,6 +7,8 @@ import api from "@/lib/api/axios";
 import BottomBar from "@/components/layout/BottomBar";
 import savedIcon from "@/assets/svg/saved.svg";
 import savedActiveIcon from "@/assets/svg/saved2.svg";
+import likeIcon from "@/assets/svg/like.svg";
+import likedIcon from "@/assets/svg/like2.svg";
 import shareIcon from "@/assets/svg/share.svg";
 import postIcon from "@/assets/svg/post.svg";
 
@@ -88,9 +90,13 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [savedPosts, setSavedPosts] = useState<Post[]>([]);
-  const [activeTab, setActiveTab] = useState<"posts" | "saved">("posts");
+  const [likedPosts, setLikedPosts] = useState<Post[]>([]);
+  const [activeTab, setActiveTab] = useState<"posts" | "saved" | "liked">(
+    "posts",
+  );
   const [loading, setLoading] = useState(true);
   const [loadingSaved, setLoadingSaved] = useState(false);
+  const [loadingLiked, setLoadingLiked] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const postRefs = useRef<Record<number, HTMLButtonElement | null>>({});
@@ -99,7 +105,7 @@ export default function ProfilePage() {
   useEffect(() => {
     const savedTab = sessionStorage.getItem("profileActiveTab");
 
-    if (savedTab === "posts" || savedTab === "saved") {
+    if (savedTab === "posts" || savedTab === "saved" || savedTab === "liked") {
       setActiveTab(savedTab);
     }
   }, []);
@@ -122,11 +128,16 @@ export default function ProfilePage() {
     if (savedTab === "saved" && savedPosts.length === 0 && !loadingSaved) {
       fetchSavedPosts();
     }
-  }, [loadingSaved, savedPosts.length]);
+
+    if (savedTab === "liked" && likedPosts.length === 0 && !loadingLiked) {
+      fetchLikedPosts();
+    }
+  }, [loadingSaved, loadingLiked, savedPosts.length, likedPosts.length]);
 
   useEffect(() => {
     if (loading || hasRestoredRef.current) return;
     if (activeTab === "saved" && loadingSaved) return;
+    if (activeTab === "liked" && loadingLiked) return;
 
     const savedPostId = sessionStorage.getItem("profileLastPostId");
     const savedTab = sessionStorage.getItem("profileActiveTab");
@@ -152,7 +163,15 @@ export default function ProfilePage() {
     }, 150);
 
     return () => window.clearTimeout(timer);
-  }, [loading, loadingSaved, activeTab, posts.length, savedPosts.length]);
+  }, [
+    loading,
+    loadingSaved,
+    loadingLiked,
+    activeTab,
+    posts.length,
+    savedPosts.length,
+    likedPosts.length,
+  ]);
 
   const fetchAll = async () => {
     try {
@@ -206,11 +225,37 @@ export default function ProfilePage() {
     }
   };
 
-  const handleTabChange = (tab: "posts" | "saved") => {
+  const fetchLikedPosts = async () => {
+    try {
+      setLoadingLiked(true);
+
+      const res = await api.get("/me/likes");
+      const data =
+        res.data?.data?.posts ??
+        res.data?.data?.likes ??
+        res.data?.data?.liked ??
+        res.data?.data ??
+        res.data ??
+        [];
+
+      setLikedPosts(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Fetch liked posts error:", err);
+      setLikedPosts([]);
+    } finally {
+      setLoadingLiked(false);
+    }
+  };
+
+  const handleTabChange = (tab: "posts" | "saved" | "liked") => {
     setActiveTab(tab);
 
     if (tab === "saved" && savedPosts.length === 0) {
       fetchSavedPosts();
+    }
+
+    if (tab === "liked" && likedPosts.length === 0) {
+      fetchLikedPosts();
     }
   };
 
@@ -249,8 +294,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-black pb-32 md:pb-16">
-      {/* Top header */}
-      <div className="sticky top-0 mt-4 z-20 bg-black/80 backdrop-blur-xl">
+      <div className="sticky top-0 z-20 mt-4 bg-black/80 backdrop-blur-xl">
         <div className="mx-auto w-full max-w-5xl px-4 md:px-6 lg:px-8">
           <div className="flex h-14 items-center md:mx-auto md:max-w-3xl">
             <button
@@ -424,6 +468,23 @@ export default function ProfilePage() {
                 />
                 Saved
               </button>
+
+              <button
+                onClick={() => handleTabChange("liked")}
+                className={`flex flex-1 items-center justify-center gap-2 border-b-2 py-3 text-sm font-semibold transition-colors ${
+                  activeTab === "liked"
+                    ? "border-white text-white"
+                    : "border-transparent text-neutral-500"
+                }`}
+              >
+                <Image
+                  src={activeTab === "liked" ? likedIcon : likeIcon}
+                  alt="Like"
+                  width={18}
+                  height={18}
+                />
+                Like
+              </button>
             </div>
 
             {activeTab === "posts" && (
@@ -490,6 +551,49 @@ export default function ProfilePage() {
                 ) : (
                   <div className="grid grid-cols-3 gap-1 md:gap-1.5">
                     {savedPosts.map((post) => (
+                      <button
+                        key={post.id}
+                        ref={(el) => {
+                          postRefs.current[post.id] = el;
+                        }}
+                        className="relative aspect-square overflow-hidden rounded-sm md:rounded-md"
+                        onClick={() => handleOpenPost(post.id)}
+                      >
+                        {isValidImageSrc(post.imageUrl) ? (
+                          <Image
+                            src={post.imageUrl}
+                            alt="post"
+                            fill
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="h-full w-full bg-neutral-800" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {activeTab === "liked" && (
+              <>
+                {loadingLiked ? (
+                  <div className="py-12 text-center text-sm text-neutral-500">
+                    Loading...
+                  </div>
+                ) : likedPosts.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
+                    <p className="text-lg font-bold text-white">
+                      No liked posts yet
+                    </p>
+                    <p className="max-w-xs text-sm text-neutral-500">
+                      Tap the like icon on any post to see it here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-1 md:gap-1.5">
+                    {likedPosts.map((post) => (
                       <button
                         key={post.id}
                         ref={(el) => {
