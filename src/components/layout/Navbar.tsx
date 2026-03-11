@@ -57,7 +57,6 @@ export default function Navbar() {
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<NavUser | null>(null);
-  const [showNavbar, setShowNavbar] = useState(true);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -65,7 +64,6 @@ export default function Navbar() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchPanelRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const lastScrollYRef = useRef(0);
 
   const currentUsername = user?.username ?? null;
   const trimmedQuery = useMemo(() => searchQuery.trim(), [searchQuery]);
@@ -175,41 +173,9 @@ export default function Navbar() {
 
   useEffect(() => {
     if (searchOpen) {
-      setShowNavbar(true);
       searchInputRef.current?.focus();
     }
   }, [searchOpen]);
-
-  useEffect(() => {
-    lastScrollYRef.current = window.scrollY;
-
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      const lastScrollY = lastScrollYRef.current;
-
-      if (searchOpen || dropdownOpen || menuOpen) {
-        setShowNavbar(true);
-        lastScrollYRef.current = currentScrollY;
-        return;
-      }
-
-      if (currentScrollY <= 10) {
-        setShowNavbar(true);
-      } else if (currentScrollY > lastScrollY) {
-        setShowNavbar(false);
-      } else if (currentScrollY < lastScrollY) {
-        setShowNavbar(true);
-      }
-
-      lastScrollYRef.current = currentScrollY;
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, [searchOpen, dropdownOpen, menuOpen]);
 
   function handleLogout() {
     localStorage.removeItem("token");
@@ -225,14 +191,12 @@ export default function Navbar() {
     setSearchQuery("");
     setSearchResults([]);
     setSearchLoading(false);
-    setShowNavbar(true);
   }
 
   function handleOpenSearch() {
     setSearchOpen(true);
     setDropdownOpen(false);
     setMenuOpen(false);
-    setShowNavbar(true);
   }
 
   function handleSelectUser(username: string) {
@@ -242,11 +206,7 @@ export default function Navbar() {
 
   return (
     <>
-      <nav
-        className={`sticky top-0 z-50 w-full border-b border-neutral-800 bg-black/95 px-4 py-4 backdrop-blur transition-transform duration-300 sm:px-6 md:px-16 ${
-          showNavbar ? "translate-y-0" : "-translate-y-full"
-        }`}
-      >
+      <nav className="sticky top-0 z-50 w-full border-b border-white/10 bg-black/60 px-4 py-4 backdrop-blur-xl sm:px-6 md:px-16">
         <div className="mx-auto flex max-w-5xl items-center gap-4">
           <Link href="/feed" className="flex shrink-0 items-center gap-2">
             <Image src={logo1} alt="Sociality" width={32} height={32} />
@@ -255,11 +215,10 @@ export default function Navbar() {
             </span>
           </Link>
 
-          {/* Desktop search */}
           <div className="hidden flex-1 justify-center md:flex">
             <button
               onClick={handleOpenSearch}
-              className="flex w-full max-w-md items-center gap-2 rounded-full border border-neutral-800 bg-neutral-950 px-4 py-2 text-left transition-colors hover:border-neutral-700 hover:bg-neutral-900"
+              className="flex w-full max-w-md items-center gap-2 rounded-full border border-neutral-800 bg-neutral-950/80 px-4 py-2 text-left transition-colors hover:border-neutral-700 hover:bg-neutral-900"
               aria-label="Open search"
             >
               <svg
@@ -277,14 +236,11 @@ export default function Navbar() {
                 />
               </svg>
 
-              <span className="truncate text-sm text-neutral-500">
-                Search users
-              </span>
+              <span className="truncate text-sm text-neutral-500">Search</span>
             </button>
           </div>
 
           <div className="ml-auto flex shrink-0 items-center gap-3">
-            {/* Mobile search button */}
             <button
               onClick={handleOpenSearch}
               className="text-neutral-400 transition-colors hover:text-white md:hidden"
@@ -312,7 +268,6 @@ export default function Navbar() {
                   onClick={() => {
                     setDropdownOpen((prev) => !prev);
                     setMenuOpen(false);
-                    setShowNavbar(true);
                   }}
                   aria-label="Open profile menu"
                   className="flex items-center gap-2 rounded-full md:pr-1"
@@ -387,7 +342,6 @@ export default function Navbar() {
                 onClick={() => {
                   setMenuOpen((prev) => !prev);
                   setDropdownOpen(false);
-                  setShowNavbar(true);
                 }}
                 className="text-neutral-400 transition-colors hover:text-white"
                 aria-label="Open menu"

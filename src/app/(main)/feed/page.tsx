@@ -14,8 +14,15 @@ function FeedContent() {
   const [loading, setLoading] = useState(true);
   const [hasRestoredPost, setHasRestoredPost] = useState(false);
 
-  const topRef = useRef<HTMLDivElement>(null);
+  const listTopRef = useRef<HTMLDivElement>(null);
+  const stickyRef = useRef<HTMLDivElement>(null);
   const postRefs = useRef<Record<number, HTMLDivElement | null>>({});
+
+  const getStickyOffset = () => {
+    const mainNavbarHeight = 76;
+    const feedTabsHeight = stickyRef.current?.offsetHeight ?? 0;
+    return mainNavbarHeight + feedTabsHeight + 12;
+  };
 
   const fetchPosts = async (tab: "feed" | "explore") => {
     try {
@@ -60,9 +67,11 @@ function FeedContent() {
     if (!target) return;
 
     const timer = window.setTimeout(() => {
-      target.scrollIntoView({
-        block: "center",
-        inline: "nearest",
+      const y =
+        target.getBoundingClientRect().top + window.scrollY - getStickyOffset();
+
+      window.scrollTo({
+        top: Math.max(0, y),
         behavior: "auto",
       });
 
@@ -83,45 +92,63 @@ function FeedContent() {
   };
 
   const handleHome = () => {
-    topRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (listTopRef.current) {
+      const y =
+        listTopRef.current.getBoundingClientRect().top +
+        window.scrollY -
+        getStickyOffset();
+
+      window.scrollTo({
+        top: Math.max(0, y),
+        behavior: "smooth",
+      });
+    } else {
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }
+
     fetchPosts(activeTab);
   };
 
   return (
     <div className="min-h-screen bg-black pb-32">
-      <div ref={topRef} />
+      <div ref={stickyRef} className="sticky top-[76px] z-30 px-4 pt-2 md:px-6">
+        <div className="mx-auto flex w-full max-w-3xl justify-center">
+          <div className="rounded-full bg-black/70 p-2 backdrop-blur-xl">
+            <div className="inline-flex rounded-full border border-neutral-800 bg-neutral-900/90 p-1 shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
+              <button
+                onClick={() => handleChangeTab("feed")}
+                className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${
+                  activeTab === "feed"
+                    ? "bg-violet-600 text-white shadow-lg"
+                    : "text-neutral-400 hover:bg-neutral-800 hover:text-white"
+                }`}
+              >
+                <span>🏠</span>
+                <span>Feed</span>
+              </button>
 
-      <div className="mx-auto flex w-full max-w-3xl flex-col items-center px-4 pb-2 pt-4 md:px-6">
-        <div className="w-full md:flex md:justify-center">
-          <div className="inline-flex rounded-full bg-neutral-900 p-1">
-            <button
-              onClick={() => handleChangeTab("feed")}
-              className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${
-                activeTab === "feed"
-                  ? "bg-violet-600 text-white shadow-lg"
-                  : "text-neutral-400 hover:bg-neutral-800 hover:text-white"
-              }`}
-            >
-              <span>🏠</span>
-              <span>Feed</span>
-            </button>
-
-            <button
-              onClick={() => handleChangeTab("explore")}
-              className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${
-                activeTab === "explore"
-                  ? "bg-violet-600 text-white shadow-lg"
-                  : "text-neutral-400 hover:bg-neutral-800 hover:text-white"
-              }`}
-            >
-              <span>⭕</span>
-              <span>Explore</span>
-            </button>
+              <button
+                onClick={() => handleChangeTab("explore")}
+                className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${
+                  activeTab === "explore"
+                    ? "bg-violet-600 text-white shadow-lg"
+                    : "text-neutral-400 hover:bg-neutral-800 hover:text-white"
+                }`}
+              >
+                <span>⭕</span>
+                <span>Explore</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="mx-auto flex w-full max-w-3xl flex-col items-center px-4 py-4 md:px-6">
+        <div ref={listTopRef} className="w-full" />
+
         {loading ? (
           <div className="py-12 text-center text-sm text-neutral-500">
             Loading...
