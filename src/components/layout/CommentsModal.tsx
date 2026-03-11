@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import api from "@/lib/api/axios";
 import axios from "axios";
 import { timeAgo } from "@/lib/timeAgo";
+import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 
 import likeIcon from "@/assets/svg/like.svg";
 import likedIcon from "@/assets/svg/liked.svg";
@@ -13,38 +14,11 @@ import shareIcon from "@/assets/svg/share.svg";
 import savedIcon from "@/assets/svg/saved.svg";
 import savedActiveIcon from "@/assets/svg/saved2.svg";
 
-const EMOJIS = [
-  "😀",
-  "😂",
-  "😍",
-  "🥰",
-  "😎",
-  "😭",
-  "😅",
-  "🤩",
-  "😇",
-  "🥳",
-  "❤️",
-  "🔥",
-  "👏",
-  "🙌",
-  "💯",
-  "✨",
-  "🎉",
-  "💪",
-  "🤔",
-  "😮",
-  "😢",
-  "😡",
-  "🤣",
-  "😏",
-  "🥺",
-  "😴",
-  "🤯",
-  "🫶",
-  "💀",
-  "👀",
-];
+type CommentAuthor = {
+  name: string;
+  username: string;
+  avatarUrl?: string | null;
+};
 
 type Comment = {
   id: number;
@@ -52,11 +26,7 @@ type Comment = {
   content?: string;
   body?: string;
   createdAt: string;
-  author: {
-    name: string;
-    username: string;
-    avatarUrl?: string | null;
-  };
+  author: CommentAuthor;
 };
 
 function CommentAvatar({
@@ -127,22 +97,7 @@ const usePersistedSaveState = (
   return [saved, updateSaved] as const;
 };
 
-export default function CommentsModal({
-  postId,
-  onClose,
-  postImageUrl,
-  onCommentAdded,
-  authorName,
-
-  authorAvatarUrl,
-  caption,
-  createdAt,
-  initialLiked,
-  initialLikeCount,
-  initialCommentCount,
-  initialShareCount,
-  initialSaved,
-}: {
+type CommentsModalProps = {
   postId: number;
   onClose: () => void;
   postImageUrl?: string;
@@ -157,7 +112,24 @@ export default function CommentsModal({
   initialCommentCount: number;
   initialShareCount: number;
   initialSaved: boolean;
-}) {
+};
+
+export default function CommentsModal({
+  postId,
+  onClose,
+  postImageUrl,
+  onCommentAdded,
+  authorName,
+  authorUsername,
+  authorAvatarUrl,
+  caption,
+  createdAt,
+  initialLiked,
+  initialLikeCount,
+  initialCommentCount,
+  initialShareCount,
+  initialSaved,
+}: CommentsModalProps) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState("");
@@ -172,6 +144,7 @@ export default function CommentsModal({
   const [saved, setSaved] = usePersistedSaveState(postId, initialSaved);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
 
   const liked = optimisticLiked ?? initialLiked ?? false;
   const likeCount = optimisticLikeCount ?? initialLikeCount ?? 0;
@@ -183,7 +156,14 @@ export default function CommentsModal({
     const fetchComments = async () => {
       try {
         const response = await api.get(`/posts/${postId}/comments`);
-        const data = response.data?.data?.comments ?? [];
+
+        const data =
+          response.data?.data?.comments ??
+          response.data?.data?.items ??
+          response.data?.data ??
+          response.data ??
+          [];
+
         setComments(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Fetch comments error:", error);
@@ -194,6 +174,32 @@ export default function CommentsModal({
 
     fetchComments();
   }, [postId]);
+
+  useEffect(() => {
+    if (!showEmoji) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(target)) {
+        setShowEmoji(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowEmoji(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [showEmoji]);
 
   const handleLike = async () => {
     const prevLiked = liked;
@@ -244,14 +250,21 @@ export default function CommentsModal({
   };
 
   const handleShare = async () => {
+    const url = `${window.location.origin}/posts/${postId}`;
+
     try {
-      const url = `${window.location.origin}/posts/${postId}`;
       await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      console.error("Copy link error:", error);
+    } catch {
+      const el = document.createElement("input");
+      el.value = url;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
     }
+
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handlePost = async () => {
@@ -272,7 +285,7 @@ export default function CommentsModal({
         null;
 
       if (newComment && typeof newComment === "object") {
-        setComments((prev) => [newComment, ...prev]);
+        setComments((prev) => [newComment as Comment, ...prev]);
       }
 
       onCommentAdded?.();
@@ -283,6 +296,11 @@ export default function CommentsModal({
     } finally {
       setPosting(false);
     }
+  };
+
+  const handleEmojiClick = (emojiData: EmojiClickData) => {
+    setText((prev) => prev + emojiData.emoji);
+    inputRef.current?.focus();
   };
 
   const getCommentText = (comment: Comment): string => {
@@ -298,10 +316,25 @@ export default function CommentsModal({
     }
   };
 
-  const insertEmoji = (emoji: string) => {
-    setText((prev) => prev + emoji);
-    inputRef.current?.focus();
-  };
+  const renderEmojiPicker = (
+    <div
+      ref={emojiPickerRef}
+      className="absolute bottom-[calc(100%+10px)] left-0 z-50 max-w-[calc(100vw-32px)]"
+    >
+      <div className="overflow-hidden rounded-2xl border border-neutral-800 shadow-2xl">
+        <EmojiPicker
+          onEmojiClick={handleEmojiClick}
+          theme={Theme.DARK}
+          lazyLoadEmojis
+          searchDisabled={false}
+          skinTonesDisabled
+          previewConfig={{ showPreview: false }}
+          width={300}
+          height={360}
+        />
+      </div>
+    </div>
+  );
 
   return (
     <div className="fixed inset-0 z-50">
@@ -326,7 +359,13 @@ export default function CommentsModal({
         )}
 
         <div className="sticky top-0 z-10 flex shrink-0 items-center justify-between bg-neutral-950 px-4 py-4">
-          <h2 className="text-lg font-bold text-white">Comments</h2>
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-white">Comments</h2>
+            <p className="truncate text-xs text-neutral-500">
+              @{authorUsername}
+            </p>
+          </div>
+
           <button
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-800 text-white transition-colors hover:bg-neutral-700"
@@ -384,7 +423,7 @@ export default function CommentsModal({
                   name={comment.author?.name ?? "?"}
                 />
 
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-semibold text-white">
                       {comment.author?.name}
@@ -394,7 +433,7 @@ export default function CommentsModal({
                     </p>
                   </div>
 
-                  <p className="mt-0.5 text-sm text-neutral-300">
+                  <p className="mt-0.5 wrap-break-word text-sm text-neutral-300">
                     {getCommentText(comment)}
                   </p>
                 </div>
@@ -452,28 +491,18 @@ export default function CommentsModal({
           </div>
         </div>
 
-        {showEmoji && (
-          <div className="grid shrink-0 grid-cols-10 gap-2 border-t border-neutral-800 bg-neutral-900 px-4 py-3">
-            {EMOJIS.map((emoji) => (
-              <button
-                key={emoji}
-                onClick={() => insertEmoji(emoji)}
-                className="text-xl transition-transform hover:scale-125"
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="relative flex shrink-0 items-center gap-3 border-t border-neutral-800 bg-neutral-950 px-4 py-3">
+          {showEmoji && renderEmojiPicker}
 
-        <div className="flex shrink-0 items-center gap-3 border-t border-neutral-800 bg-neutral-950 px-4 py-3">
           <button
+            type="button"
             onClick={() => setShowEmoji((prev) => !prev)}
-            className={`text-2xl transition-colors ${
+            className={`shrink-0 text-2xl leading-none transition-colors ${
               showEmoji
                 ? "text-violet-400"
                 : "text-neutral-400 hover:text-white"
             }`}
+            aria-label="Open emoji picker"
           >
             😊
           </button>
@@ -483,7 +512,11 @@ export default function CommentsModal({
             type="text"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handlePost()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handlePost();
+              }
+            }}
             placeholder="Add Comment"
             className="flex-1 bg-transparent text-sm text-white placeholder:text-neutral-500 focus:outline-none"
           />
@@ -503,7 +536,7 @@ export default function CommentsModal({
         <div className="relative flex h-[78vh] w-full max-w-5xl overflow-hidden rounded-[28px] border border-neutral-800 bg-neutral-950 shadow-2xl">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 z-20 flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors hover:bg-black/30"
+            className="absolute right-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors hover:bg-black/30"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -553,12 +586,19 @@ export default function CommentsModal({
                     </p>
                   </div>
 
+                  <p className="text-[11px] text-neutral-500">
+                    @{authorUsername}
+                  </p>
+
                   <p className="mt-1 line-clamp-4 text-xs leading-5 text-neutral-300">
                     {caption || "No description yet."}
                   </p>
                 </div>
 
-                <button className="text-neutral-500 transition-colors hover:text-white">
+                <button
+                  type="button"
+                  className="text-neutral-500 transition-colors hover:text-white"
+                >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-4 w-4"
@@ -614,7 +654,7 @@ export default function CommentsModal({
                             </p>
                           </div>
 
-                          <p className="mt-1 text-xs leading-5 text-neutral-300">
+                          <p className="mt-1 wrap-break-word text-xs leading-5 text-neutral-300">
                             {getCommentText(comment)}
                           </p>
                         </div>
@@ -678,28 +718,18 @@ export default function CommentsModal({
                 </button>
               </div>
 
-              {showEmoji && (
-                <div className="mb-3 grid grid-cols-8 gap-2 rounded-2xl border border-neutral-800 bg-neutral-900 p-3">
-                  {EMOJIS.map((emoji) => (
-                    <button
-                      key={emoji}
-                      onClick={() => insertEmoji(emoji)}
-                      className="text-lg transition-transform hover:scale-125"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div className="relative flex items-center gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 px-4 py-3">
+                {showEmoji && renderEmojiPicker}
 
-              <div className="flex items-center gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 px-4 py-3">
                 <button
+                  type="button"
                   onClick={() => setShowEmoji((prev) => !prev)}
-                  className={`text-lg transition-colors ${
+                  className={`shrink-0 text-lg leading-none transition-colors ${
                     showEmoji
                       ? "text-violet-400"
                       : "text-neutral-400 hover:text-white"
                   }`}
+                  aria-label="Open emoji picker"
                 >
                   😊
                 </button>
@@ -709,7 +739,11 @@ export default function CommentsModal({
                   type="text"
                   value={text}
                   onChange={(e) => setText(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handlePost()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handlePost();
+                    }
+                  }}
                   placeholder="Add Comment"
                   className="flex-1 bg-transparent text-sm text-white placeholder:text-neutral-500 focus:outline-none"
                 />

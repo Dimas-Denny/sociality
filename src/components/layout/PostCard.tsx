@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import api from "@/lib/api/axios";
 import axios from "axios";
 
@@ -18,6 +18,11 @@ import CommentsModal from "@/components/layout/CommentsModal";
 
 import { Post } from "@/types/post";
 import { timeAgo } from "@/lib/timeAgo";
+
+type PostCardProps = {
+  post: Post;
+  feedTab?: "feed" | "explore";
+};
 
 const usePersistedSaveState = (
   postId: string | number,
@@ -55,6 +60,17 @@ const usePersistedSaveState = (
   return [saved, updateSaved] as const;
 };
 
+function isValidImageSrc(src?: string | null): src is string {
+  if (!src) return false;
+  if (src === "string") return false;
+
+  return (
+    src.startsWith("/") ||
+    src.startsWith("http://") ||
+    src.startsWith("https://")
+  );
+}
+
 function AuthorAvatar({
   avatarUrl,
   name,
@@ -62,7 +78,7 @@ function AuthorAvatar({
   avatarUrl: string | null;
   name: string;
 }) {
-  if (avatarUrl) {
+  if (isValidImageSrc(avatarUrl)) {
     return (
       <Image
         src={avatarUrl}
@@ -82,8 +98,9 @@ function AuthorAvatar({
   );
 }
 
-export default function PostCard({ post }: { post: Post }) {
+export default function PostCard({ post, feedTab }: PostCardProps) {
   const router = useRouter();
+  const pathname = usePathname();
 
   const [showFull, setShowFull] = useState(false);
   const [showLikesModal, setShowLikesModal] = useState(false);
@@ -132,7 +149,20 @@ export default function PostCard({ post }: { post: Post }) {
   };
 
   const goToPostDetail = () => {
-    router.push(`/posts/${post.id}`);
+    if (pathname.startsWith("/feed")) {
+      sessionStorage.setItem("feedLastPostId", String(post.id));
+      sessionStorage.setItem("feedActiveTab", feedTab ?? "feed");
+    }
+
+    if (pathname === "/profile") {
+      sessionStorage.setItem("profileLastPostId", String(post.id));
+    }
+
+    if (pathname.startsWith("/users/")) {
+      sessionStorage.setItem("userProfileLastPostId", String(post.id));
+    }
+
+    router.push(`/posts/${post.id}`, { scroll: false });
   };
 
   const triggerLikeAnim = () => {
@@ -236,8 +266,8 @@ export default function PostCard({ post }: { post: Post }) {
         />
       )}
 
-      <div className="w-full overflow-hidden border border-neutral-800 rounded-2xl bg-neutral-900 md:max-w-[420px] ">
-        <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+      <div className="w-full overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900 md:max-w-170">
+        <div className="flex items-center gap-3 px-4 pb-3 pt-4">
           <button onClick={goToAuthorProfile}>
             <AuthorAvatar
               avatarUrl={post.author.avatarUrl}
@@ -266,19 +296,23 @@ export default function PostCard({ post }: { post: Post }) {
           </div>
         </div>
 
-        {post.imageUrl && (
-          <div
-            className="relative aspect-square w-full cursor-pointer md:aspect-[4/5]"
-            onClick={goToPostDetail}
-          >
+        <div
+          className="relative aspect-square w-full cursor-pointer bg-neutral-950 md:aspect-4/5"
+          onClick={goToPostDetail}
+        >
+          {isValidImageSrc(post.imageUrl) ? (
             <Image
               src={post.imageUrl}
               alt="post"
               fill
               className="object-contain"
             />
-          </div>
-        )}
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-sm text-neutral-500">
+              No image
+            </div>
+          )}
+        </div>
 
         <div className="flex items-center gap-4 px-4 py-3">
           <div className="flex items-center gap-1.5">
@@ -293,7 +327,7 @@ export default function PostCard({ post }: { post: Post }) {
                 alt="like"
                 width={18}
                 height={18}
-                className="md:h-[18px] md:w-[18px]"
+                className="md:h-4.5 md:w-4.5"
               />
             </button>
 

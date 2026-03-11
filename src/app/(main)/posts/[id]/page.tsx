@@ -12,6 +12,7 @@ import commentIcon from "@/assets/svg/comment.svg";
 import savedIcon from "@/assets/svg/saved.svg";
 import savedActiveIcon from "@/assets/svg/saved2.svg";
 import shareIcon from "@/assets/svg/share.svg";
+import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 
 type Author = {
   id: number;
@@ -76,6 +77,20 @@ export default function PostDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
+  const [currentUsername] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+
+    try {
+      const raw = localStorage.getItem("user");
+      if (!raw) return null;
+
+      const user = JSON.parse(raw);
+      return user.username ?? null;
+    } catch {
+      return null;
+    }
+  });
+
   const [post, setPost] = useState<PostDetail | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,7 +100,14 @@ export default function PostDetailPage() {
   const [commentText, setCommentText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [showActions, setShowActions] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   const inputRef = useRef<HTMLInputElement>(null);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchPost = async () => {
@@ -96,6 +118,7 @@ export default function PostDetailPage() {
         ]);
 
         const postData = postRes.data?.data ?? postRes.data;
+
         setPost(postData);
         setLiked(postData.likedByMe ?? false);
         setLikeCount(postData.likeCount ?? 0);
@@ -112,6 +135,8 @@ export default function PostDetailPage() {
       } catch (error) {
         if (axios.isAxiosError(error)) {
           console.error("Fetch post error:", error.response?.data);
+        } else {
+          console.error("Fetch post error:", error);
         }
       } finally {
         setLoading(false);
@@ -121,16 +146,52 @@ export default function PostDetailPage() {
     fetchPost();
   }, [id]);
 
+  useEffect(() => {
+    if (!showEmoji) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(target)) {
+        setShowEmoji(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showEmoji]);
+
+  useEffect(() => {
+    if (!showActions) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+
+      if (actionsRef.current && !actionsRef.current.contains(target)) {
+        setShowActions(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showActions]);
+
   const handleLike = async () => {
     try {
       if (liked) {
         await api.delete(`/posts/${id}/like`);
         setLiked(false);
-        setLikeCount((p) => Math.max(0, p - 1));
+        setLikeCount((prev) => Math.max(0, prev - 1));
       } else {
         await api.post(`/posts/${id}/like`, {});
         setLiked(true);
-        setLikeCount((p) => p + 1);
+        setLikeCount((prev) => prev + 1);
       }
     } catch (error) {
       console.error("Like error:", error);
@@ -167,26 +228,56 @@ export default function PostDetailPage() {
 
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+    setShowActions(false);
   };
 
   const handleComment = async () => {
-    if (!commentText.trim()) return;
+    const value = commentText.trim();
+    if (!value) return;
 
     try {
       setSubmitting(true);
+
       const res = await api.post(`/posts/${id}/comments`, {
-        text: commentText,
+        text: value,
       });
 
       const newComment = res.data?.data ?? res.data;
+
       setComments((prev) => [...prev, newComment]);
       setCommentText("");
+      setShowEmoji(false);
     } catch (error) {
       if (axios.isAxiosError(error)) {
         console.error("Comment error:", error.response?.data);
+      } else {
+        console.error("Comment error:", error);
       }
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleEmojiClick = (emojiData: EmojiClickData) => {
+    setCommentText((prev) => prev + emojiData.emoji);
+    inputRef.current?.focus();
+  };
+
+  const handleDeletePost = async () => {
+    try {
+      setDeleting(true);
+      await api.delete(`/posts/${id}`);
+      router.replace("/profile");
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error("Delete post error:", error.response?.data);
+      } else {
+        console.error("Delete post error:", error);
+      }
+    } finally {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+      setShowActions(false);
     }
   };
 
@@ -206,208 +297,348 @@ export default function PostDetailPage() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-black pb-32 md:pb-10">
-      <div className="mx-auto w-full max-w-6xl px-4 pt-4 md:px-6 md:pt-6">
-        {/* Mobile back */}
-        <div className="mb-3 md:hidden">
-          <button
-            onClick={() => router.back()}
-            className="text-neutral-400 transition-colors hover:text-white"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-          </button>
-        </div>
+  const isMine = currentUsername === post.author.username;
 
-        {/* Desktop layout */}
-        <div className="overflow-hidden md:grid md:grid-cols-[minmax(0,1.15fr)_400px] md:gap-0 md:rounded-[28px] md:border md:border-neutral-800 md:bg-neutral-950">
-          {/* Left side */}
-          <div className="md:border-r md:border-neutral-800">
-            <div className="relative w-full bg-black aspect-square md:aspect-auto md:h-[78vh]">
-              <Image
-                src={post.imageUrl}
-                alt="post"
-                fill
-                className="object-contain"
-              />
-            </div>
+  return (
+    <>
+      <div className="min-h-screen bg-black pb-32 md:pb-10">
+        <div className="mx-auto w-full max-w-6xl px-4 pt-4 md:px-6 md:pt-24">
+          {/* Mobile back */}
+          <div className="mb-3 md:hidden">
+            <button
+              onClick={() => router.back()}
+              className="text-neutral-400 transition-colors hover:text-white"
+              aria-label="Back"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
           </div>
 
-          {/* Right side */}
-          <div className="flex min-h-0 flex-col bg-neutral-950">
-            {/* Header author */}
-            <div className="border-b border-neutral-800 px-4 py-4 md:px-5">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => router.push(`/users/${post.author.username}`)}
-                >
-                  <AvatarFallback
-                    url={post.author.avatarUrl}
-                    name={post.author.name}
-                    size={38}
-                  />
-                </button>
+          {/* Desktop layout */}
+          <div className="relative md:grid md:grid-cols-[minmax(0,1.15fr)_400px] md:gap-0 md:rounded-[28px] md:border md:border-neutral-800 md:bg-neutral-950 md:overflow-hidden">
+            {/* Desktop Close */}
+            <button
+              onClick={() => router.back()}
+              className="absolute left-4 top-4 z-30 hidden h-11 w-11 items-center justify-center rounded-full border border-neutral-700 bg-black/70 text-white shadow-lg backdrop-blur transition hover:bg-black/90 md:flex"
+              aria-label="Close"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
 
-                <div className="min-w-0 flex-1">
+            {/* Left side */}
+            <div className="md:border-r md:border-neutral-800">
+              <div className="relative aspect-square w-full bg-black md:h-[78vh] md:aspect-auto">
+                <Image
+                  src={post.imageUrl}
+                  alt="post"
+                  fill
+                  className="object-contain"
+                />
+              </div>
+            </div>
+
+            {/* Right side */}
+            <div className="flex min-h-0 flex-col bg-neutral-950">
+              {/* Header author */}
+              <div className="border-b border-neutral-800 px-4 py-4 md:px-5">
+                <div className="flex items-center gap-3">
                   <button
                     onClick={() =>
                       router.push(`/users/${post.author.username}`)
                     }
-                    className="truncate text-sm font-semibold text-white hover:underline"
                   >
-                    {post.author.name}
+                    <AvatarFallback
+                      url={post.author.avatarUrl}
+                      name={post.author.name}
+                      size={38}
+                    />
                   </button>
-                  <p className="text-xs text-neutral-500">
-                    {timeAgo(post.createdAt)}
-                  </p>
-                </div>
-              </div>
 
-              <div className="mt-3">
-                <p className="text-sm leading-relaxed text-neutral-300">
-                  <span className="mr-2 font-semibold text-white">
-                    {post.author.name}
-                  </span>
-                  {post.caption}
-                </p>
-              </div>
-            </div>
-
-            {/* Comments title */}
-            <div className="border-b border-neutral-800 px-4 py-3 md:px-5">
-              <p className="text-sm font-semibold text-white">Comments</p>
-            </div>
-
-            {/* Comments list */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 md:px-5">
-              {comments.length === 0 ? (
-                <div className="py-8 text-center">
-                  <p className="text-sm text-neutral-500">No comments yet</p>
-                  <p className="mt-1 text-xs text-neutral-600">
-                    Start the conversation
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {comments.map((comment) => (
-                    <div
-                      key={comment.id}
-                      className="border-b border-neutral-900 pb-4 last:border-b-0"
+                  <div className="min-w-0 flex-1">
+                    <button
+                      onClick={() =>
+                        router.push(`/users/${post.author.username}`)
+                      }
+                      className="truncate text-sm font-semibold text-white hover:underline"
                     >
-                      <div className="flex items-start gap-3">
-                        <AvatarFallback
-                          url={comment.author.avatarUrl}
-                          name={comment.author.name}
-                          size={32}
-                        />
+                      {post.author.name}
+                    </button>
+                    <p className="text-xs text-neutral-500">
+                      {timeAgo(post.createdAt)}
+                    </p>
+                  </div>
 
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm text-white">
-                            <span className="mr-2 font-semibold">
-                              {comment.author.name}
-                            </span>
-                            <span className="text-neutral-300">
-                              {comment.text}
-                            </span>
-                          </p>
-                          <p className="mt-0.5 text-xs text-neutral-600">
-                            {timeAgo(comment.createdAt)}
-                          </p>
+                  <div className="relative" ref={actionsRef}>
+                    <button
+                      type="button"
+                      onClick={() => setShowActions((prev) => !prev)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition-colors hover:bg-neutral-900 hover:text-white"
+                      aria-label="Post actions"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 6h.01M12 12h.01M12 18h.01"
+                        />
+                      </svg>
+                    </button>
+
+                    {showActions && (
+                      <div className="absolute right-0 top-10 z-30 w-44 overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900 shadow-xl">
+                        <button
+                          onClick={handleShare}
+                          className="block w-full px-4 py-3 text-left text-sm text-white transition-colors hover:bg-neutral-800"
+                        >
+                          Copy link
+                        </button>
+
+                        {isMine && (
+                          <button
+                            onClick={() => {
+                              setShowDeleteConfirm(true);
+                              setShowActions(false);
+                            }}
+                            className="block w-full px-4 py-3 text-left text-sm text-red-400 transition-colors hover:bg-neutral-800"
+                          >
+                            Delete post
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  <p className="text-sm leading-relaxed text-neutral-300">
+                    <span className="mr-2 font-semibold text-white">
+                      {post.author.name}
+                    </span>
+                    {post.caption}
+                  </p>
+                </div>
+              </div>
+
+              {/* Comments title */}
+              <div className="border-b border-neutral-800 px-4 py-3 md:px-5">
+                <p className="text-sm font-semibold text-white">Comments</p>
+              </div>
+
+              {/* Comments list */}
+              <div className="flex-1 overflow-y-auto px-4 py-4 md:px-5">
+                {comments.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <p className="text-sm text-neutral-500">No comments yet</p>
+                    <p className="mt-1 text-xs text-neutral-600">
+                      Start the conversation
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {comments.map((comment) => (
+                      <div
+                        key={comment.id}
+                        className="border-b border-neutral-900 pb-4 last:border-b-0"
+                      >
+                        <div className="flex items-start gap-3">
+                          <AvatarFallback
+                            url={comment.author.avatarUrl}
+                            name={comment.author.name}
+                            size={32}
+                          />
+
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm text-white">
+                              <span className="mr-2 font-semibold">
+                                {comment.author.name}
+                              </span>
+                              <span className="text-neutral-300">
+                                {comment.text}
+                              </span>
+                            </p>
+                            <p className="mt-0.5 text-xs text-neutral-600">
+                              {timeAgo(comment.createdAt)}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Actions + input */}
-            <div className="border-t border-neutral-800 px-4 py-3 md:px-5">
-              <div className="mb-3 flex items-center gap-5">
-                <button
-                  onClick={handleLike}
-                  className="flex items-center gap-1.5 text-neutral-400 transition-colors hover:text-white"
-                >
-                  <Image
-                    src={liked ? likedIcon : likeIcon}
-                    alt="like"
-                    width={20}
-                    height={20}
-                  />
-                  <span className="text-sm">{likeCount}</span>
-                </button>
-
-                <button
-                  onClick={() => inputRef.current?.focus()}
-                  className="flex items-center gap-1.5 text-neutral-400 transition-colors hover:text-white"
-                >
-                  <Image
-                    src={commentIcon}
-                    alt="comment"
-                    width={20}
-                    height={20}
-                  />
-                  <span className="text-sm">{comments.length}</span>
-                </button>
-
-                <button
-                  onClick={handleShare}
-                  className="relative flex items-center gap-1.5 text-neutral-400 transition-colors hover:text-white"
-                >
-                  <Image src={shareIcon} alt="share" width={20} height={20} />
-                  <span className="text-sm">{post.shareCount ?? 0}</span>
-
-                  {copied && (
-                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-neutral-800 px-2 py-1 text-xs text-white">
-                      Link copied!
-                    </span>
-                  )}
-                </button>
-
-                <button onClick={handleSave} className="ml-auto">
-                  <Image
-                    src={saved ? savedActiveIcon : savedIcon}
-                    alt="save"
-                    width={20}
-                    height={20}
-                  />
-                </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <div className="flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900 px-4 py-2.5">
-                <input
-                  ref={inputRef}
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleComment()}
-                  placeholder="Add Comment"
-                  className="flex-1 bg-transparent text-sm text-white placeholder:text-neutral-500 focus:outline-none"
-                />
-                <button
-                  onClick={handleComment}
-                  disabled={!commentText.trim() || submitting}
-                  className="text-sm font-semibold text-violet-400 transition-opacity disabled:opacity-40"
-                >
-                  {submitting ? "..." : "Post"}
-                </button>
+              {/* Actions + input */}
+              <div className="border-t border-neutral-800 px-4 py-3 md:px-5">
+                <div className="mb-3 flex items-center gap-5">
+                  <button
+                    onClick={handleLike}
+                    className="flex items-center gap-1.5 text-neutral-400 transition-colors hover:text-white"
+                  >
+                    <Image
+                      src={liked ? likedIcon : likeIcon}
+                      alt="like"
+                      width={20}
+                      height={20}
+                    />
+                    <span className="text-sm">{likeCount}</span>
+                  </button>
+
+                  <button
+                    onClick={() => inputRef.current?.focus()}
+                    className="flex items-center gap-1.5 text-neutral-400 transition-colors hover:text-white"
+                  >
+                    <Image
+                      src={commentIcon}
+                      alt="comment"
+                      width={20}
+                      height={20}
+                    />
+                    <span className="text-sm">{comments.length}</span>
+                  </button>
+
+                  <button
+                    onClick={handleShare}
+                    className="relative flex items-center gap-1.5 text-neutral-400 transition-colors hover:text-white"
+                  >
+                    <Image src={shareIcon} alt="share" width={20} height={20} />
+                    <span className="text-sm">{post.shareCount ?? 0}</span>
+
+                    {copied && (
+                      <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-neutral-800 px-2 py-1 text-xs text-white">
+                        Link copied!
+                      </span>
+                    )}
+                  </button>
+
+                  <button onClick={handleSave} className="ml-auto">
+                    <Image
+                      src={saved ? savedActiveIcon : savedIcon}
+                      alt="save"
+                      width={20}
+                      height={20}
+                    />
+                  </button>
+                </div>
+
+                <div className="relative">
+                  {showEmoji && (
+                    <div
+                      ref={emojiPickerRef}
+                      className="absolute bottom-[calc(100%+10px)] left-0 z-50 md:left-0"
+                    >
+                      <div className="max-w-[calc(100vw-32px)] overflow-hidden rounded-2xl border border-neutral-800 shadow-2xl">
+                        <EmojiPicker
+                          onEmojiClick={handleEmojiClick}
+                          theme={Theme.DARK}
+                          lazyLoadEmojis
+                          searchDisabled={false}
+                          skinTonesDisabled
+                          previewConfig={{ showPreview: false }}
+                          width={300}
+                          height={360}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900 px-4 py-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setShowEmoji((prev) => !prev)}
+                      className="shrink-0 text-lg leading-none transition-transform hover:scale-110"
+                      aria-label="Open emoji picker"
+                    >
+                      😊
+                    </button>
+
+                    <input
+                      ref={inputRef}
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          handleComment();
+                        }
+                      }}
+                      placeholder="Add Comment"
+                      className="flex-1 bg-transparent text-sm text-white placeholder:text-neutral-500 focus:outline-none"
+                    />
+
+                    <button
+                      onClick={handleComment}
+                      disabled={!commentText.trim() || submitting}
+                      className="shrink-0 text-sm font-semibold text-violet-400 transition-opacity disabled:opacity-40"
+                    >
+                      {submitting ? "..." : "Post"}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
+
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+            <div className="w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-950 p-5">
+              <h3 className="text-lg font-semibold text-white">Delete post?</h3>
+              <p className="mt-2 text-sm text-neutral-400">
+                This action cannot be undone.
+              </p>
+
+              <div className="mt-5 flex gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 rounded-full border border-neutral-700 px-4 py-2.5 text-sm font-semibold text-white"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={handleDeletePost}
+                  disabled={deleting}
+                  className="flex-1 rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {deleting ? "Deleting..." : "Delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+    </>
   );
 }

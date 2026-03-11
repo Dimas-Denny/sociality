@@ -58,7 +58,7 @@ export default function BottomBar({ onHome }: { onHome?: () => void }) {
         visible ? "translate-y-0" : "translate-y-32"
       }`}
     >
-      <div className="mx-auto w-full max-w-[320px] rounded-full border border-neutral-800 bg-neutral-950 px-8 shadow-2xl md:max-w-[220px] md:px-5">
+      <div className="mx-auto w-full max-w-[320px] rounded-full border border-neutral-800 bg-neutral-950 px-8 shadow-2xl md:max-w-55 md:px-5">
         <div className="flex items-center justify-between">
           <button
             onClick={handleHome}
@@ -70,7 +70,7 @@ export default function BottomBar({ onHome }: { onHome?: () => void }) {
                 alt="Home"
                 width={20}
                 height={20}
-                className="md:h-[16px] md:w-[16px]"
+                className="md:h-4 md:w-4"
               />
             </div>
             <span className="text-xs font-medium text-primary-200 md:text-[10px]">
@@ -108,7 +108,7 @@ export default function BottomBar({ onHome }: { onHome?: () => void }) {
                 alt="Profile"
                 width={20}
                 height={20}
-                className="md:h-[16px] md:w-[16px]"
+                className="md:h-4 md:w-4"
               />
             </div>
             <span

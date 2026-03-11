@@ -1,11 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api/axios";
 import BottomBar from "@/components/layout/BottomBar";
 import savedIcon from "@/assets/svg/saved.svg";
+import savedActiveIcon from "@/assets/svg/saved2.svg";
 import shareIcon from "@/assets/svg/share.svg";
 import postIcon from "@/assets/svg/post.svg";
 
@@ -27,10 +28,26 @@ type Post = {
 };
 
 function formatCount(n: number): string {
-  if (n >= 1_000_000)
+  if (n >= 1_000_000) {
     return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
-  if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
+  }
+
+  if (n >= 1_000) {
+    return (n / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
+  }
+
   return String(n);
+}
+
+function isValidImageSrc(src?: string | null): src is string {
+  if (!src) return false;
+  if (src === "string") return false;
+
+  return (
+    src.startsWith("/") ||
+    src.startsWith("http://") ||
+    src.startsWith("https://")
+  );
 }
 
 function Avatar({
@@ -42,7 +59,7 @@ function Avatar({
   name?: string;
   size: number;
 }) {
-  if (url) {
+  if (isValidImageSrc(url)) {
     return (
       <Image
         src={url}
@@ -67,6 +84,7 @@ function Avatar({
 
 export default function ProfilePage() {
   const router = useRouter();
+
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [savedPosts, setSavedPosts] = useState<Post[]>([]);
@@ -75,15 +93,66 @@ export default function ProfilePage() {
   const [loadingSaved, setLoadingSaved] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  const postRefs = useRef<Record<number, HTMLButtonElement | null>>({});
+  const hasRestoredRef = useRef(false);
+
+  useEffect(() => {
+    const savedTab = sessionStorage.getItem("profileActiveTab");
+
+    if (savedTab === "posts" || savedTab === "saved") {
+      setActiveTab(savedTab);
+    }
+  }, []);
+
   useEffect(() => {
     const token = localStorage.getItem("token");
+
     if (!token) {
       router.replace("/login");
       return;
     }
+
     fetchAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const savedTab = sessionStorage.getItem("profileActiveTab");
+
+    if (savedTab === "saved" && savedPosts.length === 0 && !loadingSaved) {
+      fetchSavedPosts();
+    }
+  }, [loadingSaved, savedPosts.length]);
+
+  useEffect(() => {
+    if (loading || hasRestoredRef.current) return;
+    if (activeTab === "saved" && loadingSaved) return;
+
+    const savedPostId = sessionStorage.getItem("profileLastPostId");
+    const savedTab = sessionStorage.getItem("profileActiveTab");
+
+    if (!savedPostId) return;
+    if (savedTab && savedTab !== activeTab) return;
+
+    const postId = Number(savedPostId);
+    const el = postRefs.current[postId];
+
+    if (!el) return;
+
+    const timer = window.setTimeout(() => {
+      el.scrollIntoView({
+        block: "center",
+        inline: "nearest",
+        behavior: "auto",
+      });
+
+      sessionStorage.removeItem("profileLastPostId");
+      sessionStorage.removeItem("profileActiveTab");
+      hasRestoredRef.current = true;
+    }, 150);
+
+    return () => window.clearTimeout(timer);
+  }, [loading, loadingSaved, activeTab, posts.length, savedPosts.length]);
 
   const fetchAll = async () => {
     try {
@@ -119,6 +188,7 @@ export default function ProfilePage() {
   const fetchSavedPosts = async () => {
     try {
       setLoadingSaved(true);
+
       const res = await api.get("/me/saved");
       const data =
         res.data?.data?.posts ??
@@ -138,6 +208,7 @@ export default function ProfilePage() {
 
   const handleTabChange = (tab: "posts" | "saved") => {
     setActiveTab(tab);
+
     if (tab === "saved" && savedPosts.length === 0) {
       fetchSavedPosts();
     }
@@ -145,6 +216,7 @@ export default function ProfilePage() {
 
   const handleShare = async () => {
     const url = `${window.location.origin}/users/${profile?.username}`;
+
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
@@ -161,6 +233,12 @@ export default function ProfilePage() {
     }
   };
 
+  const handleOpenPost = (postId: number) => {
+    sessionStorage.setItem("profileLastPostId", String(postId));
+    sessionStorage.setItem("profileActiveTab", activeTab);
+    router.push(`/posts/${postId}`, { scroll: false });
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black">
@@ -171,44 +249,38 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-black pb-32 md:pb-16">
-      {/* Mobile Header */}
-      <div className="flex items-center justify-between px-4 pt-5 pb-3 md:hidden">
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-white"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-          <span className="text-base font-semibold">{profile?.name}</span>
-        </button>
-
-        <Avatar
-          url={profile?.avatarUrl ?? null}
-          name={profile?.name}
-          size={36}
-        />
+      {/* Top header */}
+      <div className="sticky top-0 mt-4 z-20 bg-black/80 backdrop-blur-xl">
+        <div className="mx-auto w-full max-w-5xl px-4 md:px-6 lg:px-8">
+          <div className="flex h-14 items-center md:mx-auto md:max-w-3xl">
+            <button
+              onClick={() => router.back()}
+              className="group inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm font-medium text-white transition-all hover:border-neutral-700 hover:bg-neutral-900"
+              aria-label="Go back"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4 transition-transform group-hover:-translate-x-0.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+              <span>Back</span>
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="mx-auto w-full max-w-5xl px-4 md:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-5xl px-4 pt-5 md:px-6 lg:px-8">
         <div className="md:mx-auto md:max-w-3xl">
-          {/* Desktop top spacing */}
-          <div className="hidden md:block md:h-6" />
-
-          {/* Profile header block */}
           <div className="space-y-4 md:space-y-6">
-            {/* Mobile layout */}
             <div className="space-y-4 md:hidden">
               <div className="flex items-center gap-3">
                 <Avatar
@@ -254,7 +326,6 @@ export default function ProfilePage() {
               </p>
             </div>
 
-            {/* Desktop layout */}
             <div className="hidden md:flex md:items-start md:justify-between md:gap-6">
               <div className="flex min-w-0 flex-1 items-start gap-4">
                 <Avatar
@@ -305,7 +376,6 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Stats */}
             <div className="grid grid-cols-4 divide-x divide-neutral-800 py-1 text-center">
               {[
                 { label: "Post", value: profile?.postCount ?? 0 },
@@ -325,7 +395,6 @@ export default function ProfilePage() {
               ))}
             </div>
 
-            {/* Tabs */}
             <div className="flex border-b border-neutral-800">
               <button
                 onClick={() => handleTabChange("posts")}
@@ -347,12 +416,16 @@ export default function ProfilePage() {
                     : "border-transparent text-neutral-500"
                 }`}
               >
-                <Image src={savedIcon} alt="Saved" width={18} height={18} />
+                <Image
+                  src={activeTab === "saved" ? savedActiveIcon : savedIcon}
+                  alt="Saved"
+                  width={18}
+                  height={18}
+                />
                 Saved
               </button>
             </div>
 
-            {/* Gallery Content */}
             {activeTab === "posts" && (
               <>
                 {posts.length === 0 ? (
@@ -376,15 +449,22 @@ export default function ProfilePage() {
                     {posts.map((post) => (
                       <button
                         key={post.id}
+                        ref={(el) => {
+                          postRefs.current[post.id] = el;
+                        }}
                         className="relative aspect-square overflow-hidden rounded-sm md:rounded-md"
-                        onClick={() => router.push(`/posts/${post.id}`)}
+                        onClick={() => handleOpenPost(post.id)}
                       >
-                        <Image
-                          src={post.imageUrl}
-                          alt="post"
-                          fill
-                          className="object-cover"
-                        />
+                        {isValidImageSrc(post.imageUrl) ? (
+                          <Image
+                            src={post.imageUrl}
+                            alt="post"
+                            fill
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="h-full w-full bg-neutral-800" />
+                        )}
                       </button>
                     ))}
                   </div>
@@ -392,7 +472,6 @@ export default function ProfilePage() {
               </>
             )}
 
-            {/* Saved Content */}
             {activeTab === "saved" && (
               <>
                 {loadingSaved ? (
@@ -413,15 +492,22 @@ export default function ProfilePage() {
                     {savedPosts.map((post) => (
                       <button
                         key={post.id}
+                        ref={(el) => {
+                          postRefs.current[post.id] = el;
+                        }}
                         className="relative aspect-square overflow-hidden rounded-sm md:rounded-md"
-                        onClick={() => router.push(`/posts/${post.id}`)}
+                        onClick={() => handleOpenPost(post.id)}
                       >
-                        <Image
-                          src={post.imageUrl}
-                          alt="post"
-                          fill
-                          className="object-cover"
-                        />
+                        {isValidImageSrc(post.imageUrl) ? (
+                          <Image
+                            src={post.imageUrl}
+                            alt="post"
+                            fill
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="h-full w-full bg-neutral-800" />
+                        )}
                       </button>
                     ))}
                   </div>
