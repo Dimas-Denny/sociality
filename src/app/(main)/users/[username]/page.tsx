@@ -9,6 +9,8 @@ import postIcon from "@/assets/svg/post.svg";
 import likeIcon from "@/assets/svg/like.svg";
 import likedIcon from "@/assets/svg/like2.svg";
 import shareIcon from "@/assets/svg/share.svg";
+import FollowersModal from "@/components/layout/FollowersModal";
+import FollowingModal from "@/components/layout/FollowingModal";
 
 type UserProfile = {
   id: string;
@@ -108,6 +110,9 @@ export default function UserProfilePage() {
   const [followLoading, setFollowLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [hasRestoredScroll, setHasRestoredScroll] = useState(false);
+
+  const [showFollowersModal, setShowFollowersModal] = useState(false);
+  const [showFollowingModal, setShowFollowingModal] = useState(false);
 
   useEffect(() => {
     const savedTab = sessionStorage.getItem("userProfileActiveTab");
@@ -312,8 +317,7 @@ export default function UserProfilePage() {
 
   return (
     <div className="min-h-screen bg-black pb-16 md:pb-20">
-      {/* Top header */}
-      <div className="sticky top-0 mt-4 z-20 bg-black/80 backdrop-blur-xl">
+      <div className="sticky top-0 z-20 mt-4 bg-black/80 backdrop-blur-xl">
         <div className="mx-auto w-full max-w-5xl px-4 md:px-6 lg:px-8">
           <div className="flex h-14 items-center md:mx-auto md:max-w-3xl">
             <button
@@ -462,22 +466,39 @@ export default function UserProfilePage() {
             </div>
 
             <div className="grid grid-cols-4 divide-x divide-neutral-800 py-1 text-center">
-              {[
-                { label: "Post", value: profile.postCount ?? 0 },
-                { label: "Followers", value: profile.followerCount ?? 0 },
-                { label: "Following", value: profile.followingCount ?? 0 },
-                { label: "Likes", value: profile.likeCount ?? 0 },
-              ].map((stat) => (
-                <div
-                  key={stat.label}
-                  className="flex flex-col items-center gap-0.5 px-2"
-                >
-                  <span className="text-base font-bold text-white md:text-lg">
-                    {formatCount(stat.value)}
-                  </span>
-                  <span className="text-xs text-neutral-500">{stat.label}</span>
-                </div>
-              ))}
+              <div className="flex flex-col items-center gap-0.5 px-2">
+                <span className="text-base font-bold text-white md:text-lg">
+                  {formatCount(profile.postCount ?? 0)}
+                </span>
+                <span className="text-xs text-neutral-500">Post</span>
+              </div>
+
+              <button
+                onClick={() => setShowFollowersModal(true)}
+                className="flex flex-col items-center gap-0.5 px-2 transition-opacity hover:opacity-80"
+              >
+                <span className="text-base font-bold text-white md:text-lg">
+                  {formatCount(profile.followerCount ?? 0)}
+                </span>
+                <span className="text-xs text-neutral-500">Followers</span>
+              </button>
+
+              <button
+                onClick={() => setShowFollowingModal(true)}
+                className="flex flex-col items-center gap-0.5 px-2 transition-opacity hover:opacity-80"
+              >
+                <span className="text-base font-bold text-white md:text-lg">
+                  {formatCount(profile.followingCount ?? 0)}
+                </span>
+                <span className="text-xs text-neutral-500">Following</span>
+              </button>
+
+              <div className="flex flex-col items-center gap-0.5 px-2">
+                <span className="text-base font-bold text-white md:text-lg">
+                  {formatCount(profile.likeCount ?? 0)}
+                </span>
+                <span className="text-xs text-neutral-500">Likes</span>
+              </div>
             </div>
 
             <div className="flex border-b border-neutral-800">
@@ -548,6 +569,20 @@ export default function UserProfilePage() {
           </div>
         </div>
       </div>
+
+      {showFollowersModal && profile?.username && (
+        <FollowersModal
+          username={profile.username}
+          onClose={() => setShowFollowersModal(false)}
+        />
+      )}
+
+      {showFollowingModal && profile?.username && (
+        <FollowingModal
+          username={profile.username}
+          onClose={() => setShowFollowingModal(false)}
+        />
+      )}
     </div>
   );
 }

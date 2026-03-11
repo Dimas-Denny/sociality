@@ -266,7 +266,7 @@ export default function PostCard({ post, feedTab }: PostCardProps) {
         />
       )}
 
-      <div className="w-full overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900 md:max-w-170">
+      <div className="mx-auto w-full overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900 md:max-w-170">
         <div className="flex items-center gap-3 px-4 pb-3 pt-4">
           <button onClick={goToAuthorProfile}>
             <AuthorAvatar

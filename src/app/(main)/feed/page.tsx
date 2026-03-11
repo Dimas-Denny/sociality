@@ -114,7 +114,7 @@ function FeedContent() {
 
   return (
     <div className="min-h-screen bg-black pb-32">
-      <div ref={stickyRef} className="sticky top-[76px] z-30 px-4 pt-2 md:px-6">
+      <div ref={stickyRef} className="sticky top-19 z-30 px-4 pt-2 md:px-6">
         <div className="mx-auto flex w-full max-w-3xl justify-center">
           <div className="rounded-full bg-black/70 p-2 backdrop-blur-xl">
             <div className="inline-flex rounded-full border border-neutral-800 bg-neutral-900/90 p-1 shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
@@ -146,7 +146,7 @@ function FeedContent() {
         </div>
       </div>
 
-      <div className="mx-auto flex w-full max-w-3xl flex-col items-center px-4 py-4 md:px-6">
+      <div className="mx-auto w-full max-w-3xl px-4 py-4 md:px-6">
         <div ref={listTopRef} className="w-full" />
 
         {loading ? (
@@ -160,7 +160,7 @@ function FeedContent() {
               : "No posts available"}
           </div>
         ) : (
-          <div className="flex w-full flex-col items-center gap-4">
+          <div className="w-full space-y-4">
             {posts.map((post) => (
               <div
                 key={post.id}
