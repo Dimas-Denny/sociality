@@ -1,36 +1,314 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+🚀 Sociality
 
-## Getting Started
+A modern social media web application built with Next.js, TypeScript, and TailwindCSS.
+Users can share posts, follow other users, like content, and explore posts in a responsive and interactive interface.
 
-First, run the development server:
+This project demonstrates a production-ready frontend architecture, optimized for performance, scalability, and clean UI/UX.
+
+⸻
+
+🌐 Live Demo
+
+Frontend
+https://sociality-eosin.vercel.app/
+
+Backend API
+https://be-social-media-api-production.up.railway.app/
+
+API Documentation
+https://be-social-media-api-production.up.railway.app/api-swagger
+
+⸻
+
+✨ Features
+
+Authentication
+• User registration
+• Login with JWT authentication
+• Persistent session handling
+
+Feed
+• Personalized following feed
+• Public explore feed
+• Smooth UI transitions
+
+Posts
+• Create post with image upload
+• Like posts
+• Save posts
+• Delete your own posts
+• Share post links
+• Emoji supported comments
+
+Profiles
+• User profile page
+• Follow / unfollow users
+• Post gallery
+• Liked posts
+• Saved posts
+• Edit profile
+
+UI / UX
+• Responsive mobile & desktop layout
+• Sticky navigation
+• Smooth scroll restoration
+• Modal-style post viewer
+• Tab state persistence
+
+⸻
+
+🧱 Tech Stack
+
+Frontend
+• Next.js 14
+• React
+• TypeScript
+• TailwindCSS
+• Axios
+
+Image Handling
+• Next.js Image Optimization
+
+State & UX
+• React Hooks
+• SessionStorage state persistence
+
+Deployment
+• Vercel (Frontend)
+• Railway (Backend API)
+
+⸻
+
+🏗 Architecture
+
+Frontend follows a modular component-based architecture.
+
+```bash
+src
+ ├── app
+ │   ├── (auth)
+ │   │   ├── login
+ │   │   └── register
+ │   │
+ │   ├── (main)
+ │   │   ├── feed
+ │   │   ├── posts
+ │   │   └── profile
+ │   │
+ │   ├── users
+ │   │   └── [username]
+ │   │
+ │   └── add-post
+ │
+ ├── components
+ │   ├── layout
+ │   │   ├── BottomBar.tsx
+ │   │   ├── Navbar.tsx
+ │   │   └── PostCard.tsx
+ │   │
+ │   └── ui
+ │
+ ├── lib
+ │   ├── api
+ │   │   └── axios.ts
+ │   │
+ │   └── store
+ │
+ ├── assets
+ │   └── svg
+ │
+ └── types
+```
+
+⸻
+
+⚙️ Installation
+
+Clone repository
+
+```bash
+https://github.com/Dimas-Denny/sociality.git
+```
+
+Enter project folder
+
+```bash
+cd sociality
+```
+
+Install dependencies
+
+```bash
+npm install
+```
+
+Run development server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open browser
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+⸻
 
-## Learn More
+🔐 Environment Variables
 
-To learn more about Next.js, take a look at the following resources:
+Create a .env.local file
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+touch .env.local
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Add environment variable
 
-## Deploy on Vercel
+```bash
+NEXT_PUBLIC_API_URL=https://be-social-media-api-production.up.railway.app
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+⸻
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+🔌 API Endpoints
+
+Users
+
+```bash
+GET /users/{username}
+GET /users/{username}/posts
+GET /users/{username}/likes
+```
+
+Follow
+
+```bash
+POST /follow/{username}
+DELETE /follow/{username}
+```
+
+Posts
+
+```bash
+GET /posts
+GET /feed
+POST /posts
+DELETE /posts/{id}
+```
+
+Profile
+
+```bash
+GET /me
+GET /me/posts
+GET /me/saved
+```
+
+⸻
+
+🖼 Image Handling
+
+Images are optimized using Next.js Image component.
+
+Configure next.config.js:
+
+```js
+images: {
+  remotePatterns: [
+    {
+      protocol: "https",
+      hostname: "**",
+    },
+  ],
+}
+```
+
+Invalid image URLs are filtered before rendering to prevent runtime errors.
+
+⸻
+
+📱 Responsive Design
+
+Mobile
+
+```bash
+Bottom navigation
+Touch optimized layout
+```
+
+Desktop
+
+```bash
+Centered content column
+Modal post viewer
+Adaptive spacing
+```
+
+⸻
+
+🚀 Deployment
+
+Frontend deployment
+
+```bash
+npm run build
+```
+
+Deploy using
+
+```bash
+Vercel
+```
+
+Backend deployment
+
+```bash
+Railway
+```
+
+⸻
+
+📸 Screenshots
+
+Example:
+
+```bash
+![Feed](./screenshots/feed.png)
+```
+
+You can include screenshots for:
+• Feed Page
+• Profile Page
+• Post Viewer
+• Mobile UI
+
+⸻
+
+📈 Future Improvements
+
+```bash
+Notifications system
+Real-time updates
+Infinite scrolling
+Story feature
+Dark/light theme
+WebSocket integration
+```
+
+⸻
+
+👨‍💻 Author
+
+Developed by
+
+```bash
+Dimas Denny WIbowo
+```
+
+Github
+
+```bash
+https://github.com/Dimas-Denny
+```
